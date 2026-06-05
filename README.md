@@ -1,4 +1,4 @@
-# .NET API Toolkit
+# AGROSMART
 
 Stack: **.NET 8** · **SQL Server 2022** · **Docker** · **EF Core** · **Identity + JWT** · **Swagger**
 
