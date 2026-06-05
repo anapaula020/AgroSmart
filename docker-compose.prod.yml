@@ -1,0 +1,30 @@
+name: dotnet-toolkit
+
+services:
+  api:
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Em produção, sobrescreva via variáveis de ambiente do host:
+      # ConnectionStrings__DefaultConnection=...
+      # Jwt__Key=...
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports: []   # use reverse proxy em prod
+
+  sqlserver:
+    restart: always
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G

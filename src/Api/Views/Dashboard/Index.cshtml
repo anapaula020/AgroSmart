@@ -1,0 +1,247 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<!-- Hero banner -->
+<div class="hero">
+    <div class="hero__overlay"></div>
+    <div class="hero__content">
+        <h2 class="hero__title">Bom dia! &#128075;</h2>
+        <p class="hero__sub" id="heroSub">Carregando dados...</p>
+    </div>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid" id="statGrid">
+    <div class="stat-card">
+        <div class="stat-card__icon"><span class="material-symbols-outlined">inventory_2</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statProducts">—</span>
+            <span class="stat-card__label">Produtos</span>
+            <span class="stat-card__sub" id="statProductsSub">cadastrados</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">category</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statCategories">—</span>
+            <span class="stat-card__label">Categorias</span>
+            <span class="stat-card__sub">cadastradas</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--green"><span class="material-symbols-outlined">check_circle</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statActive">—</span>
+            <span class="stat-card__label">Ativos</span>
+            <span class="stat-card__sub">produtos ativos</span>
+        </div>
+    </div>
+    <div class="stat-card" id="statLowCard">
+        <div class="stat-card__icon stat-card__icon--warn"><span class="material-symbols-outlined">warning</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statLow">—</span>
+            <span class="stat-card__label">Estoque Baixo</span>
+            <span class="stat-card__sub">abaixo de 10 un.</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts row -->
+<div class="charts-grid">
+    <div class="panel">
+        <div class="panel__header">
+            <span class="material-symbols-outlined">bar_chart</span>
+            <h3 class="panel__title">Produtos por Categoria</h3>
+        </div>
+        <div class="panel__body">
+            <div class="chart-wrap" id="barWrap">
+                <canvas id="barChart"></canvas>
+                <div class="chart-empty" id="barEmpty">
+                    <span class="material-symbols-outlined">bar_chart</span>
+                    <p>Nenhum dado disponível</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel__header">
+            <span class="material-symbols-outlined">donut_large</span>
+            <h3 class="panel__title">Distribuição de Estoque</h3>
+        </div>
+        <div class="panel__body">
+            <div class="chart-wrap" id="pieWrap">
+                <canvas id="pieChart"></canvas>
+                <div class="chart-empty" id="pieEmpty">
+                    <span class="material-symbols-outlined">donut_large</span>
+                    <p>Nenhum dado disponível</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent products table -->
+<div class="panel" id="recentPanel">
+    <div class="panel__header">
+        <span class="material-symbols-outlined">schedule</span>
+        <h3 class="panel__title">Produtos Recentes</h3>
+    </div>
+    <div class="panel__body panel__body--flush">
+        <div id="recentLoading" class="loading-state">
+            <span class="material-symbols-outlined spin">sync</span> Carregando...
+        </div>
+        <table class="table" id="recentTable" style="display:none">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Categoria</th>
+                    <th>Preço</th>
+                    <th>Estoque</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="recentBody"></tbody>
+        </table>
+        <div class="chart-empty" id="recentEmpty" style="display:none">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <p>Nenhum produto cadastrado</p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(async () => {
+    const token = localStorage.getItem('jwt');
+
+    async function apiFetch(url) {
+        const res = await fetch(url, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+    }
+
+    try {
+        const [productsData, categoriesData] = await Promise.all([
+            apiFetch('/api/v1/products?pageSize=100'),
+            apiFetch('/api/v1/categories')
+        ]);
+
+        const products   = productsData.items ?? [];
+        const categories = Array.isArray(categoriesData) ? categoriesData : [];
+
+        // ── Hero ──────────────────────────────────────────────────────────
+        const active = products.filter(p => p.isActive).length;
+        const low    = products.filter(p => p.stock < 10).length;
+        document.getElementById('heroSub').textContent =
+            `${products.length} produto(s) • ${categories.length} categoria(s) • ${low} com estoque baixo`;
+
+        // ── Stat cards ────────────────────────────────────────────────────
+        document.getElementById('statProducts').textContent   = products.length;
+        document.getElementById('statCategories').textContent = categories.length;
+        document.getElementById('statActive').textContent     = active;
+        document.getElementById('statLow').textContent        = low;
+        if (low > 0) document.getElementById('statLowCard').classList.add('stat-card--warn');
+
+        // ── Bar chart: produtos por categoria ─────────────────────────────
+        const catMap = {};
+        products.forEach(p => {
+            const name = p.categoryName ?? 'Sem categoria';
+            catMap[name] = (catMap[name] || 0) + 1;
+        });
+        const catLabels = Object.keys(catMap);
+        const catValues = Object.values(catMap);
+
+        if (catLabels.length > 0) {
+            document.getElementById('barEmpty').style.display = 'none';
+            new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        label: 'Produtos',
+                        data: catValues,
+                        backgroundColor: 'rgba(0,229,160,0.75)',
+                        borderRadius: 6,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } }
+                    }
+                }
+            });
+        } else {
+            document.getElementById('barChart').style.display = 'none';
+        }
+
+        // ── Pie chart: distribuição de estoque ────────────────────────────
+        const stockOk  = products.filter(p => p.stock >= 10).length;
+        const stockLow = products.filter(p => p.stock > 0 && p.stock < 10).length;
+        const stockOut = products.filter(p => p.stock === 0).length;
+
+        if (products.length > 0) {
+            document.getElementById('pieEmpty').style.display = 'none';
+            new Chart(document.getElementById('pieChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Normal', 'Baixo', 'Sem estoque'],
+                    datasets: [{
+                        data: [stockOk, stockLow, stockOut],
+                        backgroundColor: ['rgba(0,229,160,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)'],
+                        borderWidth: 0,
+                        hoverOffset: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#9ca3af', padding: 16, boxWidth: 12, borderRadius: 4 }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        } else {
+            document.getElementById('pieChart').style.display = 'none';
+        }
+
+        // ── Recent products table ─────────────────────────────────────────
+        document.getElementById('recentLoading').style.display = 'none';
+        const recent = products.slice(0, 8);
+        if (recent.length === 0) {
+            document.getElementById('recentEmpty').style.display = 'flex';
+        } else {
+            const tbody = document.getElementById('recentBody');
+            const fmt   = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+            tbody.innerHTML = recent.map(p => `
+                <tr>
+                    <td class="td--name">${p.name}</td>
+                    <td><span class="badge badge--neutral">${p.categoryName ?? '—'}</span></td>
+                    <td class="mono">${fmt.format(p.price)}</td>
+                    <td class="mono ${p.stock < 10 ? 'text-warn' : ''}">${p.stock}</td>
+                    <td>${p.isActive
+                        ? '<span class="badge badge--active">Ativo</span>'
+                        : '<span class="badge badge--inactive">Inativo</span>'}</td>
+                </tr>`).join('');
+            document.getElementById('recentTable').style.display = 'table';
+        }
+
+    } catch (err) {
+        document.getElementById('heroSub').textContent = 'Erro ao carregar dados. Verifique a autenticação.';
+        console.error(err);
+    }
+})();
+</script>
+}
