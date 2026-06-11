@@ -1,0 +1,129 @@
+@{
+    ViewData["Title"] = "Safras";
+}
+
+<div class="page-header">
+    <div class="filter-bar">
+        <select class="input" id="filterStatus" onchange="loadHarvests()">
+            <option value="">Todos os status</option>
+            <option value="Planned">Planejada</option>
+            <option value="InProgress">Em Andamento</option>
+            <option value="Harvested">Colhida</option>
+            <option value="Lost">Perdida</option>
+        </select>
+    </div>
+    <div class="page-header__actions">
+        <button class="btn btn--primary" onclick="openNewHarvestModal()">
+            <span class="material-symbols-outlined">add</span> Nova Safra
+        </button>
+    </div>
+</div>
+
+<div id="listWrap">
+    <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
+</div>
+
+<div class="modal" id="modalNewHarvest">
+    <div class="modal__box">
+        <h2 class="modal__title">Nova Safra</h2>
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Nome *</label>
+                <input class="input" id="hvName" placeholder="Ex: Soja 2024/1" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Talhão *</label>
+                <select class="input" id="hvField"><option value="">Carregando...</option></select>
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Cultura *</label>
+                <select class="input" id="hvCulture"><option value="">Carregando...</option></select>
+            </div>
+            <div class="form-group">
+                <label class="label">Data de Plantio *</label>
+                <input class="input" id="hvPlanting" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="label">Previsão de Colheita *</label>
+                <input class="input" id="hvExpected" type="date" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Rendimento Estimado (ton)</label>
+                <input class="input" id="hvYield" type="number" step="0.01" placeholder="0.00" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createHarvest()">Criar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewHarvest')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const statusLabels = { Planned:'Planejada', InProgress:'Em Andamento', Harvested:'Colhida', Lost:'Perdida' };
+const statusClass  = { Planned:'status--planned', InProgress:'status--inprogress', Harvested:'status--harvested', Lost:'status--lost' };
+
+async function loadHarvests() {
+    const status = document.getElementById('filterStatus').value;
+    const url    = '/api/v1/harvests' + (status ? `?status=${status}` : '');
+    const data   = await Auth.json(url);
+    const wrap   = document.getElementById('listWrap');
+
+    if (!data || data.length === 0) {
+        wrap.innerHTML = `<div class="panel"><div class="empty">
+            <span class="material-symbols-outlined">grass</span>
+            <p>Nenhuma safra encontrada</p></div></div>`;
+        return;
+    }
+    wrap.innerHTML = `<div class="panel"><div class="panel__body panel__body--flush">
+        <table class="table"><thead><tr>
+            <th>Nome</th><th>Cultura</th><th>Talhão</th><th>Plantio</th><th>Colheita Prev.</th><th>Rendimento</th><th>Status</th>
+        </tr></thead><tbody>${data.map(h => `<tr>
+            <td class="td--name">${h.name}</td>
+            <td>${h.culture?.commonName ?? '—'}</td>
+            <td class="text-muted">${h.field?.name ?? '—'}</td>
+            <td class="mono">${fmtDate(h.plantingDate)}</td>
+            <td class="mono">${fmtDate(h.expectedHarvestDate)}</td>
+            <td class="mono">${h.actualYieldTons != null ? h.actualYieldTons + ' ton' : (h.estimatedYieldTons + ' ton est.')}</td>
+            <td><span class="badge ${statusClass[h.status] ?? ''}">${statusLabels[h.status] ?? h.status}</span></td>
+        </tr>`).join('')}</tbody></table></div></div>`;
+}
+
+async function openNewHarvestModal() {
+    const [fields, cultures] = await Promise.all([
+        Auth.json('/api/v1/rural-properties').then(async props => {
+            if (!props?.length) return [];
+            const all = await Promise.all(props.map(p =>
+                Auth.json(`/api/v1/rural-properties/${p.id}/fields`).then(fs => (fs||[]).map(f => ({...f, propName: p.name})))
+            ));
+            return all.flat();
+        }),
+        Auth.json('/api/v1/cultures') ?? []
+    ]);
+
+    document.getElementById('hvField').innerHTML = '<option value="">Selecione...</option>' +
+        fields.map(f => `<option value="${f.id}">[${f.propName}] ${f.name}</option>`).join('');
+    document.getElementById('hvCulture').innerHTML = '<option value="">Selecione...</option>' +
+        (cultures||[]).map(c => `<option value="${c.id}">${c.commonName}</option>`).join('');
+
+    openModal('modalNewHarvest');
+}
+
+async function createHarvest() {
+    const body = {
+        name: document.getElementById('hvName').value,
+        fieldId: document.getElementById('hvField').value,
+        cultureId: document.getElementById('hvCulture').value,
+        plantingDate: document.getElementById('hvPlanting').value,
+        expectedHarvestDate: document.getElementById('hvExpected').value,
+        estimatedYieldTons: parseFloat(document.getElementById('hvYield').value) || 0,
+    };
+    const res = await Auth.fetch('/api/v1/harvests', { method: 'POST', body: JSON.stringify(body) });
+    if (res?.ok) { toast('Safra criada!'); closeModal('modalNewHarvest'); await loadHarvests(); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+loadHarvests();
+</script>
+}

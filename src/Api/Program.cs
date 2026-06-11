@@ -2,6 +2,8 @@ using System.Text;
 using Api.Data;
 using Api.Middleware;
 using Api.Services;
+using Api.Models;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -60,10 +62,46 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey         = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
     };
+})
+.AddScheme<AuthenticationSchemeOptions, Api.Middleware.ApiKeyAuthHandler>(
+    Api.Middleware.ApiKeyAuthHandler.SchemeName, _ => { });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .AddAuthenticationSchemes(
+            Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme,
+            Api.Middleware.ApiKeyAuthHandler.SchemeName)
+        .Build();
+});
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<ApiKeyService>();
+builder.Services.AddScoped<IbgeService>();
+builder.Services.AddScoped<OpenWeatherService>();
+
+// ── HttpClients ───────────────────────────────────────────────────────────────
+builder.Services.AddHttpClient("openweather", c =>
+{
+    c.BaseAddress = new Uri(builder.Configuration["OpenWeather:BaseUrl"] ?? "https://api.openweathermap.org/data/2.5/");
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient("ibge", c =>
+{
+    c.BaseAddress = new Uri(builder.Configuration["Ibge:BaseUrl"] ?? "https://servicodados.ibge.gov.br/api/v1/");
+    c.Timeout = TimeSpan.FromSeconds(10);
 });
 
-builder.Services.AddAuthorization();
-builder.Services.AddScoped<TokenService>();
+// ── Cookie auth for MVC pages ────────────────────────────────────────────────
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath  = "/login";
+    options.LogoutPath = "/logout";
+    options.AccessDeniedPath = "/login";
+    options.Cookie.HttpOnly  = true;
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan   = TimeSpan.FromHours(8);
+});
 
 // ── Controllers + Razor Views ────────────────────────────────────────────────
 builder.Services.AddControllersWithViews()
@@ -85,7 +123,7 @@ builder.Services.AddSwaggerGen(c =>
         Contact = new OpenApiContact { Name = "Dev Team" }
     });
 
-    var securityScheme = new OpenApiSecurityScheme
+    var jwtScheme = new OpenApiSecurityScheme
     {
         Name         = "Authorization",
         Description  = "JWT Bearer. Exemplo: **Bearer {token}**",
@@ -95,10 +133,22 @@ builder.Services.AddSwaggerGen(c =>
         BearerFormat = "JWT",
         Reference    = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
     };
-    c.AddSecurityDefinition("Bearer", securityScheme);
+    c.AddSecurityDefinition("Bearer", jwtScheme);
+
+    var apiKeyScheme = new OpenApiSecurityScheme
+    {
+        Name        = "X-Api-Key",
+        Description = "API Key gerada pelo usuário",
+        In          = ParameterLocation.Header,
+        Type        = SecuritySchemeType.ApiKey,
+        Reference   = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" }
+    };
+    c.AddSecurityDefinition("ApiKey", apiKeyScheme);
+
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { securityScheme, Array.Empty<string>() }
+        { jwtScheme,    Array.Empty<string>() },
+        { apiKeyScheme, Array.Empty<string>() }
     });
 });
 
@@ -177,6 +227,10 @@ static async Task InitializeDatabaseAsync(IServiceProvider services)
                 await userManager.AddToRoleAsync(admin, "Admin");
                 Log.Information("Default admin created: {Email}", adminEmail);
             }
+
+            // Seed localidades IBGE (só roda se tabela estiver vazia)
+            var ibgeSvc = scope.ServiceProvider.GetRequiredService<Api.Services.IbgeService>();
+            await ibgeSvc.SeedLocalidadesAsync(db);
 
             Log.Information("Database initialized successfully");
             return;

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — AgroAdmin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <style>
+        :root {
+            --bg:        #f7f6f2;
+            --bg-2:      #ffffff;
+            --bg-3:      #f0efe9;
+            --border:    #e2e0d8;
+            --border-2:  #d3d1c7;
+            --text:      #141f17;
+            --text-muted:#6b7c70;
+            --text-dim:  #8a9e90;
+            --accent:    #2d6e4e;
+            --accent-dim:#255e41;
+            --accent-light: #e8f4ed;
+            --danger:    #dc2626;
+            --danger-light: #fef2f2;
+            --font-ui:   'DM Sans', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'DM Mono', monospace;
+            --radius:    6px; --radius-lg: 12px;
+            --shadow:    0 2px 8px rgba(0,0,0,.08);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .auth-wrap { width: 100%; max-width: 400px; }
+        .auth-brand { text-align: center; margin-bottom: 32px; }
+        .auth-brand__icon {
+            font-size: 40px; color: var(--accent);
+            display: block; margin-bottom: 8px;
+        }
+        .auth-brand__name {
+            font-family: var(--font-ui);
+            font-size: 22px; font-weight: 700;
+            letter-spacing: .04em; text-transform: uppercase;
+            color: var(--text);
+        }
+        .auth-card {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: var(--shadow);
+        }
+        .auth-title {
+            font-family: var(--font-ui);
+            font-size: 18px; font-weight: 700;
+            margin-bottom: 24px; color: var(--text);
+        }
+        .form-group { margin-bottom: 16px; }
+        .label {
+            display: block;
+            font-size: 11px; font-weight: 700;
+            letter-spacing: .06em; text-transform: uppercase;
+            color: var(--text-dim); margin-bottom: 6px;
+        }
+        .input {
+            width: 100%; background: var(--bg);
+            border: 1px solid var(--border-2); color: var(--text);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            font-family: var(--font-body); font-size: 14px;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,110,78,.1); }
+        .input::placeholder { color: var(--text-muted); }
+        .btn {
+            width: 100%; padding: 11px;
+            background: var(--accent); color: #fff;
+            border: none; border-radius: var(--radius);
+            font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+            letter-spacing: .02em; cursor: pointer; margin-top: 8px;
+            transition: background .15s;
+        }
+        .btn:hover { background: var(--accent-dim); }
+        .error-box {
+            background: var(--danger-light); border: 1px solid rgba(220,38,38,.2);
+            color: var(--danger); border-radius: var(--radius);
+            padding: 10px 14px; font-size: 13px;
+            margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+        }
+        .auth-footer {
+            text-align: center; margin-top: 20px;
+            font-size: 13px; color: var(--text-muted);
+        }
+        .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+        .auth-footer a:hover { text-decoration: underline; }
+        .hint {
+            background: var(--bg-3); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 10px 14px;
+            font-size: 12px; color: var(--text-muted);
+            font-family: var(--font-mono); margin-top: 16px;
+        }
+        .hint strong { color: var(--text-dim); }
+    </style>
+</head>
+<body>
+    <div class="auth-wrap">
+        <div class="auth-brand">
+            <span class="material-symbols-outlined auth-brand__icon">eco</span>
+            <span class="auth-brand__name">AgroAdmin</span>
+        </div>
+        @RenderBody()
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -4,11 +4,6 @@ Stack: **.NET 8** · **SQL Server 2022** · **Docker** · **EF Core** · **Ident
 
 ## Quick start
 
-
-```bash
-make env
-```
-
 ```bash
 make up
 ```
@@ -31,13 +26,22 @@ Pronto. Sem configuração adicional.
 ```
 POST /api/v1/auth/login
 { "email": "admin@admin.com", "password": "Admin@1234!" }
+→ { "token": "eyJ..." }
 ```
+
+No Swagger: botão **Authorize** → `Bearer eyJ...`
+
+## Permissões
+
+| Role | Acesso |
+|---|---|
+| `User` | GET em products e categories |
+| `Admin` | CRUD completo |
 
 ## Comandos
 
 | Comando | Descrição |
 |---|---|
-| `make env` | Cria variável de ambiente |
 | `make up` | Sobe ambiente dev |
 | `make down` | Para ambiente dev |
 | `make logs` | Logs da API |
@@ -49,4 +53,34 @@ POST /api/v1/auth/login
 
 1. Crie o model em `Models/Entities.cs`
 2. Adicione `DbSet<T>` no `AppDbContext`
+<<<<<<< HEAD
 3. `make down && make up` (o `EnsureCreated` recria o schema)
+=======
+3. `make down && docker volume rm dotnet-toolkit_sqlserver_data && make up`  
+   (o `EnsureCreated` recria o schema)
+
+## Estrutura
+
+```
+src/Api/
+├── Controllers/
+│   ├── AuthController.cs        # POST /auth/login, /auth/register, GET /auth/me
+│   ├── ProductsController.cs    # CRUD /products
+│   ├── CategoriesController.cs  # CRUD /categories
+│   ├── DashboardController.cs   # MVC view
+│   ├── AdminProductsController.cs
+│   └── AdminCategoriesController.cs
+├── Data/
+│   └── AppDbContext.cs          # IdentityDbContext + seed
+├── Middleware/
+│   └── ErrorHandlingMiddleware.cs
+├── Models/
+│   ├── Entities.cs
+│   ├── Dtos.cs
+│   └── AuthDtos.cs
+├── Services/
+│   └── TokenService.cs
+├── Views/                       # Razor (admin dashboard)
+└── wwwroot/                     # CSS + JS
+```
+>>>>>>> 98bb587 (sistema)

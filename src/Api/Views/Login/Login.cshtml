@@ -1,0 +1,52 @@
+@{
+    Layout = "~/Views/Login/_AuthLayout.cshtml";
+    ViewData["Title"] = "Login";
+}
+
+<div class="auth-card">
+    <h1 class="auth-title">Entrar</h1>
+
+    @if (ViewData["Error"] != null)
+    {
+        <div class="error-box">
+            <span class="material-symbols-outlined" style="font-size:16px">error</span>
+            @ViewData["Error"]
+        </div>
+    }
+
+    <form method="post" action="/login">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+        <div class="form-group">
+            <label class="label">Email</label>
+            <input class="input" type="email" name="email" placeholder="seu@email.com" required autofocus />
+        </div>
+        <div class="form-group">
+            <label class="label">Senha</label>
+            <input class="input" type="password" name="password" placeholder="••••••••" required />
+        </div>
+
+        <button type="submit" class="btn">Entrar</button>
+    </form>
+
+    <div class="hint">
+        <strong>Admin padrão:</strong><br />
+        admin@@admin.com / Admin@@1234!
+    </div>
+</div>
+
+<div class="auth-footer">
+    Não tem conta? <a href="/register">Criar conta</a>
+</div>
+
+@section Scripts {
+<script>
+// Se o cookie jwt foi setado pelo servidor, salva no localStorage também
+const jwt = document.cookie.split(';').find(c => c.trim().startsWith('jwt='));
+if (jwt) {
+    const token = jwt.split('=')[1];
+    localStorage.setItem('jwt', token);
+}
+</script>
+}

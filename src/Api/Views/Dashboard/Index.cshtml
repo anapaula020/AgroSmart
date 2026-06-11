@@ -2,64 +2,61 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<!-- Hero banner -->
-<div class="hero">
-    <div class="hero__overlay"></div>
+<div class="hero" style="background:none">
+    <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&q=80"
+         alt="Paisagem agrícola"
+         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" />
+    <div class="hero__overlay" style="background:linear-gradient(90deg,rgba(0,0,0,.65) 0%,rgba(0,0,0,.2) 100%)"></div>
     <div class="hero__content">
-        <h2 class="hero__title">Bom dia! &#128075;</h2>
+        <h2 class="hero__title">Bom dia! 🌾</h2>
         <p class="hero__sub" id="heroSub">Carregando dados...</p>
     </div>
 </div>
 
-<!-- Stat cards -->
 <div class="stat-grid" id="statGrid">
     <div class="stat-card">
-        <div class="stat-card__icon"><span class="material-symbols-outlined">inventory_2</span></div>
+        <div class="stat-card__icon"><span class="material-symbols-outlined">landscape</span></div>
         <div class="stat-card__body">
-            <span class="stat-card__value" id="statProducts">—</span>
-            <span class="stat-card__label">Produtos</span>
-            <span class="stat-card__sub" id="statProductsSub">cadastrados</span>
+            <span class="stat-card__value" id="statProps">—</span>
+            <span class="stat-card__label">Propriedades</span>
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">category</span></div>
+        <div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">grass</span></div>
         <div class="stat-card__body">
-            <span class="stat-card__value" id="statCategories">—</span>
-            <span class="stat-card__label">Categorias</span>
-            <span class="stat-card__sub">cadastradas</span>
+            <span class="stat-card__value" id="statHarvests">—</span>
+            <span class="stat-card__label">Safras Ativas</span>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-card__icon stat-card__icon--green"><span class="material-symbols-outlined">check_circle</span></div>
-        <div class="stat-card__body">
-            <span class="stat-card__value" id="statActive">—</span>
-            <span class="stat-card__label">Ativos</span>
-            <span class="stat-card__sub">produtos ativos</span>
-        </div>
-    </div>
-    <div class="stat-card" id="statLowCard">
+    <div class="stat-card" id="cardLowStock">
         <div class="stat-card__icon stat-card__icon--warn"><span class="material-symbols-outlined">warning</span></div>
         <div class="stat-card__body">
-            <span class="stat-card__value" id="statLow">—</span>
+            <span class="stat-card__value" id="statLowStock">—</span>
             <span class="stat-card__label">Estoque Baixo</span>
-            <span class="stat-card__sub">abaixo de 10 un.</span>
+        </div>
+    </div>
+    <div class="stat-card" id="cardAlerts">
+        <div class="stat-card__icon stat-card__icon--warn"><span class="material-symbols-outlined">notifications</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statAlerts">—</span>
+            <span class="stat-card__label">Alertas</span>
+            <span class="stat-card__sub" id="statAlertsSub"></span>
         </div>
     </div>
 </div>
 
-<!-- Charts row -->
 <div class="charts-grid">
     <div class="panel">
         <div class="panel__header">
             <span class="material-symbols-outlined">bar_chart</span>
-            <h3 class="panel__title">Produtos por Categoria</h3>
+            <h3 class="panel__title">Safras por Status</h3>
         </div>
         <div class="panel__body">
-            <div class="chart-wrap" id="barWrap">
-                <canvas id="barChart"></canvas>
-                <div class="chart-empty" id="barEmpty">
-                    <span class="material-symbols-outlined">bar_chart</span>
-                    <p>Nenhum dado disponível</p>
+            <div class="chart-wrap">
+                <canvas id="harvestChart"></canvas>
+                <div class="chart-empty" id="harvestEmpty">
+                    <span class="material-symbols-outlined">grass</span>
+                    <p>Nenhuma safra cadastrada</p>
                 </div>
             </div>
         </div>
@@ -67,179 +64,165 @@
 
     <div class="panel">
         <div class="panel__header">
-            <span class="material-symbols-outlined">donut_large</span>
-            <h3 class="panel__title">Distribuição de Estoque</h3>
+            <span class="material-symbols-outlined">inventory_2</span>
+            <h3 class="panel__title">Estoque por Produto</h3>
         </div>
         <div class="panel__body">
-            <div class="chart-wrap" id="pieWrap">
-                <canvas id="pieChart"></canvas>
-                <div class="chart-empty" id="pieEmpty">
-                    <span class="material-symbols-outlined">donut_large</span>
-                    <p>Nenhum dado disponível</p>
+            <div class="chart-wrap">
+                <canvas id="stockChart"></canvas>
+                <div class="chart-empty" id="stockEmpty">
+                    <span class="material-symbols-outlined">inventory_2</span>
+                    <p>Nenhum item em estoque</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Recent products table -->
-<div class="panel" id="recentPanel">
+<!-- Alertas críticos -->
+<div class="panel" id="alertsPanel" style="display:none;margin-bottom:var(--space-5)">
     <div class="panel__header">
-        <span class="material-symbols-outlined">schedule</span>
-        <h3 class="panel__title">Produtos Recentes</h3>
+        <span class="material-symbols-outlined" style="color:var(--danger)">notifications_active</span>
+        <h3 class="panel__title">Alertas Não Lidos</h3>
+        <a href="/admin/alerts" class="btn btn--sm btn--ghost" style="margin-left:auto">Ver todos →</a>
     </div>
     <div class="panel__body panel__body--flush">
-        <div id="recentLoading" class="loading-state">
+        <table class="table" id="alertsTable">
+            <thead><tr><th>Severidade</th><th>Título</th><th>Mensagem</th><th>Data</th></tr></thead>
+            <tbody id="alertsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Safras recentes -->
+<div class="panel">
+    <div class="panel__header">
+        <span class="material-symbols-outlined">schedule</span>
+        <h3 class="panel__title">Safras em Andamento</h3>
+        <a href="/admin/harvests" class="btn btn--sm btn--ghost" style="margin-left:auto">Ver todas →</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+        <div id="harvestsLoading" class="loading-state">
             <span class="material-symbols-outlined spin">sync</span> Carregando...
         </div>
-        <table class="table" id="recentTable" style="display:none">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Categoria</th>
-                    <th>Preço</th>
-                    <th>Estoque</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="recentBody"></tbody>
+        <table class="table" id="harvestsTable" style="display:none">
+            <thead><tr><th>Nome</th><th>Cultura</th><th>Talhão</th><th>Plantio</th><th>Previsão</th><th>Status</th></tr></thead>
+            <tbody id="harvestsBody"></tbody>
         </table>
-        <div class="chart-empty" id="recentEmpty" style="display:none">
-            <span class="material-symbols-outlined">inventory_2</span>
-            <p>Nenhum produto cadastrado</p>
+        <div class="empty" id="harvestsEmpty" style="display:none">
+            <span class="material-symbols-outlined">grass</span>
+            <p>Nenhuma safra em andamento</p>
         </div>
     </div>
 </div>
 
 @section Scripts {
 <script>
+const sevClass   = { Low:'sev--low', Medium:'sev--medium', High:'sev--high', Critical:'sev--critical' };
+const sevLabels  = { Low:'Baixa', Medium:'Média', High:'Alta', Critical:'Crítica' };
+const stLabels   = { Planned:'Planejada', InProgress:'Em Andamento', Harvested:'Colhida', Lost:'Perdida' };
+const stColors   = ['rgba(59,130,246,0.7)','rgba(0,229,160,0.7)','rgba(34,197,94,0.7)','rgba(239,68,68,0.7)'];
+
 (async () => {
-    const token = localStorage.getItem('jwt');
-
-    async function apiFetch(url) {
-        const res = await fetch(url, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-        if (!res.ok) throw new Error(res.status);
-        return res.json();
-    }
-
     try {
-        const [productsData, categoriesData] = await Promise.all([
-            apiFetch('/api/v1/products?pageSize=100'),
-            apiFetch('/api/v1/categories')
+        const [props, harvests, stockItems, alertsData] = await Promise.all([
+            Auth.json('/api/v1/rural-properties') ?? [],
+            Auth.json('/api/v1/harvests') ?? [],
+            Auth.json('/api/v1/stock/items') ?? [],
+            Auth.json('/api/v1/alerts?unreadOnly=true&pageSize=5')
         ]);
 
-        const products   = productsData.items ?? [];
-        const categories = Array.isArray(categoriesData) ? categoriesData : [];
+        const activeHarvests = (harvests||[]).filter(h => h.status === 'InProgress');
+        const lowStock       = (stockItems||[]).filter(s => s.isLow);
+        const alerts         = alertsData?.items ?? [];
+        const alertTotal     = alertsData?.total ?? 0;
+        const criticalCount  = alerts.filter(a => a.severity === 'Critical').length;
 
-        // ── Hero ──────────────────────────────────────────────────────────
-        const active = products.filter(p => p.isActive).length;
-        const low    = products.filter(p => p.stock < 10).length;
+        // Hero
         document.getElementById('heroSub').textContent =
-            `${products.length} produto(s) • ${categories.length} categoria(s) • ${low} com estoque baixo`;
+            `${(props||[]).length} propriedade(s) • ${activeHarvests.length} safra(s) ativa(s) • ${alertTotal} alerta(s) pendente(s)`;
 
-        // ── Stat cards ────────────────────────────────────────────────────
-        document.getElementById('statProducts').textContent   = products.length;
-        document.getElementById('statCategories').textContent = categories.length;
-        document.getElementById('statActive').textContent     = active;
-        document.getElementById('statLow').textContent        = low;
-        if (low > 0) document.getElementById('statLowCard').classList.add('stat-card--warn');
+        // Stats
+        document.getElementById('statProps').textContent    = (props||[]).length;
+        document.getElementById('statHarvests').textContent = activeHarvests.length;
+        document.getElementById('statLowStock').textContent = lowStock.length;
+        document.getElementById('statAlerts').textContent   = alertTotal;
+        document.getElementById('statAlertsSub').textContent = criticalCount > 0 ? `${criticalCount} crítico(s)` : '';
+        if (lowStock.length > 0) document.getElementById('cardLowStock').classList.add('stat-card--warn');
+        if (alertTotal > 0)      document.getElementById('cardAlerts').classList.add('stat-card--warn');
 
-        // ── Bar chart: produtos por categoria ─────────────────────────────
-        const catMap = {};
-        products.forEach(p => {
-            const name = p.categoryName ?? 'Sem categoria';
-            catMap[name] = (catMap[name] || 0) + 1;
-        });
-        const catLabels = Object.keys(catMap);
-        const catValues = Object.values(catMap);
+        // Harvest status chart
+        const statusCount = {};
+        (harvests||[]).forEach(h => { statusCount[h.status] = (statusCount[h.status]||0) + 1; });
+        const stKeys = Object.keys(statusCount);
+        if (stKeys.length > 0) {
+            document.getElementById('harvestEmpty').style.display = 'none';
+            new Chart(document.getElementById('harvestChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: stKeys.map(k => stLabels[k] ?? k),
+                    datasets: [{ data: stKeys.map(k => statusCount[k]), backgroundColor: stColors, borderWidth: 0, hoverOffset: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 12, boxWidth: 12 } } } }
+            });
+        } else { document.getElementById('harvestChart').style.display = 'none'; }
 
-        if (catLabels.length > 0) {
-            document.getElementById('barEmpty').style.display = 'none';
-            new Chart(document.getElementById('barChart'), {
+        // Stock chart
+        const topStock = (stockItems||[]).slice(0, 8);
+        if (topStock.length > 0) {
+            document.getElementById('stockEmpty').style.display = 'none';
+            new Chart(document.getElementById('stockChart'), {
                 type: 'bar',
                 data: {
-                    labels: catLabels,
+                    labels: topStock.map(s => s.inputProduct?.name?.substring(0,12) ?? '—'),
                     datasets: [{
-                        label: 'Produtos',
-                        data: catValues,
-                        backgroundColor: 'rgba(0,229,160,0.75)',
-                        borderRadius: 6,
-                        borderSkipped: false,
+                        label: 'Qtd.',
+                        data: topStock.map(s => s.quantityInStock),
+                        backgroundColor: topStock.map(s => s.isLow ? 'rgba(245,158,11,0.7)' : 'rgba(0,229,160,0.7)'),
+                        borderRadius: 4, borderSkipped: false
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                options: { responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } }
+                        x: { ticks: { color: '#9ca3af', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.05)' } }
                     }
                 }
             });
-        } else {
-            document.getElementById('barChart').style.display = 'none';
+        } else { document.getElementById('stockChart').style.display = 'none'; }
+
+        // Alerts panel
+        if (alerts.length > 0) {
+            document.getElementById('alertsPanel').style.display = 'block';
+            document.getElementById('alertsBody').innerHTML = alerts.map(a => `<tr>
+                <td><span class="badge ${sevClass[a.severity]??''}">${sevLabels[a.severity]??a.severity}</span></td>
+                <td class="td--name">${a.title}</td>
+                <td class="text-muted" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.message}</td>
+                <td class="mono text-muted">${fmtDate(a.createdAt)}</td>
+            </tr>`).join('');
         }
 
-        // ── Pie chart: distribuição de estoque ────────────────────────────
-        const stockOk  = products.filter(p => p.stock >= 10).length;
-        const stockLow = products.filter(p => p.stock > 0 && p.stock < 10).length;
-        const stockOut = products.filter(p => p.stock === 0).length;
-
-        if (products.length > 0) {
-            document.getElementById('pieEmpty').style.display = 'none';
-            new Chart(document.getElementById('pieChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Normal', 'Baixo', 'Sem estoque'],
-                    datasets: [{
-                        data: [stockOk, stockLow, stockOut],
-                        backgroundColor: ['rgba(0,229,160,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)'],
-                        borderWidth: 0,
-                        hoverOffset: 8,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { color: '#9ca3af', padding: 16, boxWidth: 12, borderRadius: 4 }
-                        }
-                    },
-                    cutout: '65%'
-                }
-            });
+        // Harvests table
+        document.getElementById('harvestsLoading').style.display = 'none';
+        const active = (harvests||[]).filter(h => ['InProgress','Planned'].includes(h.status)).slice(0,8);
+        if (active.length === 0) {
+            document.getElementById('harvestsEmpty').style.display = 'flex';
         } else {
-            document.getElementById('pieChart').style.display = 'none';
+            document.getElementById('harvestsBody').innerHTML = active.map(h => `<tr>
+                <td class="td--name">${h.name}</td>
+                <td>${h.culture?.commonName ?? '—'}</td>
+                <td class="text-muted">${h.field?.name ?? '—'}</td>
+                <td class="mono">${fmtDate(h.plantingDate)}</td>
+                <td class="mono">${fmtDate(h.expectedHarvestDate)}</td>
+                <td><span class="badge ${h.status === 'InProgress' ? 'status--inprogress' : 'status--planned'}">${stLabels[h.status]??h.status}</span></td>
+            </tr>`).join('');
+            document.getElementById('harvestsTable').style.display = 'table';
         }
 
-        // ── Recent products table ─────────────────────────────────────────
-        document.getElementById('recentLoading').style.display = 'none';
-        const recent = products.slice(0, 8);
-        if (recent.length === 0) {
-            document.getElementById('recentEmpty').style.display = 'flex';
-        } else {
-            const tbody = document.getElementById('recentBody');
-            const fmt   = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-            tbody.innerHTML = recent.map(p => `
-                <tr>
-                    <td class="td--name">${p.name}</td>
-                    <td><span class="badge badge--neutral">${p.categoryName ?? '—'}</span></td>
-                    <td class="mono">${fmt.format(p.price)}</td>
-                    <td class="mono ${p.stock < 10 ? 'text-warn' : ''}">${p.stock}</td>
-                    <td>${p.isActive
-                        ? '<span class="badge badge--active">Ativo</span>'
-                        : '<span class="badge badge--inactive">Inativo</span>'}</td>
-                </tr>`).join('');
-            document.getElementById('recentTable').style.display = 'table';
-        }
-
-    } catch (err) {
-        document.getElementById('heroSub').textContent = 'Erro ao carregar dados. Verifique a autenticação.';
+    } catch(err) {
+        document.getElementById('heroSub').textContent = 'Erro ao carregar dados.';
         console.error(err);
     }
 })();

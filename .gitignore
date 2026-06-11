@@ -7,7 +7,7 @@ obj/
 publish/
 logs/
 
-# EF migrations 
+# EF migrations (optional - remove if you want to commit migrations)
 # src/Api/Data/Migrations/
 
 # Docker

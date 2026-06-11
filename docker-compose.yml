@@ -12,6 +12,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=AppDb;User Id=sa;Password=Dev@1234!;TrustServerCertificate=True;"
+      OpenWeather__ApiKey: "${OPENWEATHER_API_KEY:-}"
     depends_on:
       sqlserver:
         condition: service_healthy
