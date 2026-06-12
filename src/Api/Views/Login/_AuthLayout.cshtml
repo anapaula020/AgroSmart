@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - AgroSmart</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <style>
+        :root {
+            --bg:        #eef3eb;
+            --bg-2:      rgba(255,255,255,.96);
+            --bg-3:      #f5f7f2;
+            --border:    rgba(18,73,38,.12);
+            --border-2:  rgba(18,73,38,.18);
+            --text:      #17311f;
+            --text-muted:#5e7366;
+            --text-dim:  #7f9386;
+            --accent:    #177b2e;
+            --accent-dim:#0f6724;
+            --accent-2:  #245c30;
+            --accent-light: #e8f4ed;
+            --danger:    #dc2626;
+            --danger-light: #fef2f2;
+            --font-ui:   'DM Sans', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'DM Mono', monospace;
+            --radius:    10px; --radius-lg: 28px;
+            --shadow:    0 20px 50px rgba(18,47,27,.12);
+            --shadow-lg: 0 28px 70px rgba(18,47,27,.18);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-body);
+            background:
+                radial-gradient(circle at top left, rgba(72,151,83,.16), transparent 26%),
+                linear-gradient(180deg, #f7fbf4 0%, #edf4ea 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+        }
+        .auth-shell {
+            width: min(1220px, 100%);
+            min-height: min(820px, calc(100vh - 44px));
+            background: rgba(255,255,255,.78);
+            border: 1px solid rgba(255,255,255,.7);
+            border-radius: 34px;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(14px);
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(360px, 420px);
+        }
+        .auth-visual {
+            position: relative;
+            padding: 0;
+            background:
+                linear-gradient(180deg, rgba(12,113,34,.96) 0 38px, transparent 38px 100%),
+                linear-gradient(180deg, transparent calc(100% - 42px), rgba(10,124,32,.96) calc(100% - 42px));
+        }
+        .auth-visual__logo {
+            position: absolute;
+            top: 4px;
+            left: 18px;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .auth-visual__logo .material-symbols-outlined {
+            font-size: 24px;
+        }
+        .auth-visual__stage {
+            position: relative;
+            height: 100%;
+            padding: 70px 34px 68px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-collage {
+            position: relative;
+            width: min(100%, 760px);
+            aspect-ratio: 1 / 1;
+        }
+        .auth-collage__block {
+            position: absolute;
+            overflow: hidden;
+            border-radius: 24px;
+            box-shadow: 0 18px 40px rgba(0,0,0,.16);
+            background-size: cover;
+            background-position: center;
+        }
+        .auth-collage__block--rice {
+            inset: 0 44% 42% 8%;
+            background-image:
+                linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.22)),
+                url('https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=900&q=80');
+        }
+        .auth-collage__block--field {
+            inset: 0 12% 42% 34%;
+            background-image:
+                linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.18)),
+                url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80');
+        }
+        .auth-collage__block--corn {
+            inset: 0 0 24% 76%;
+            background-image:
+                linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.24)),
+                url('https://images.unsplash.com/photo-1601593768799-76d11d7d6d99?auto=format&fit=crop&w=900&q=80');
+        }
+        .auth-collage__block--fruits {
+            inset: 68% 48% 4% 34%;
+            background-image:
+                linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.32)),
+                url('https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=900&q=80');
+        }
+        .auth-collage__block--cattle {
+            inset: 68% 4% 4% 66%;
+            background-image:
+                linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.32)),
+                url('https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1200&q=80');
+        }
+        .auth-banner {
+            position: absolute;
+            left: 2%;
+            right: 10%;
+            top: 42%;
+            z-index: 2;
+            background: linear-gradient(90deg, rgba(28,145,54,.92), rgba(20,123,45,.86));
+            color: #fff;
+            border-radius: 18px;
+            padding: 28px 34px;
+            box-shadow: 0 20px 40px rgba(25,93,39,.22);
+        }
+        .auth-banner__eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            opacity: .88;
+            margin-bottom: 10px;
+        }
+        .auth-banner__title {
+            font-family: var(--font-ui);
+            font-size: clamp(34px, 4vw, 56px);
+            line-height: .98;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-shadow: 0 4px 14px rgba(0,0,0,.22);
+        }
+        .auth-banner__sub {
+            margin-top: 12px;
+            max-width: 560px;
+            font-size: 15px;
+            line-height: 1.6;
+            color: rgba(255,255,255,.9);
+        }
+        .auth-visual__footer {
+            position: absolute;
+            inset: auto 26px 10px 26px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            color: #245c30;
+            font-size: 14px;
+            z-index: 3;
+        }
+        .auth-visual__stamp {
+            font-family: var(--font-ui);
+            font-weight: 700;
+        }
+        .auth-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 44px 36px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.94)),
+                radial-gradient(circle at top, rgba(23,123,46,.08), transparent 34%);
+        }
+        .auth-panel {
+            width: 100%;
+            max-width: 360px;
+        }
+        .auth-brand {
+            text-align: left;
+            margin-bottom: 28px;
+        }
+        .auth-brand__icon {
+            font-size: 42px;
+            color: var(--accent);
+            display: block;
+            margin-bottom: 10px;
+        }
+        .auth-brand__name {
+            font-family: var(--font-ui);
+            font-size: 28px; font-weight: 700;
+            letter-spacing: .04em; text-transform: uppercase;
+            color: var(--text);
+        }
+        .auth-brand__tag {
+            margin-top: 6px;
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .auth-card {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+        }
+        .auth-title {
+            font-family: var(--font-ui);
+            font-size: 28px; font-weight: 700;
+            margin-bottom: 8px; color: var(--text);
+        }
+        .auth-copy {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.55;
+            margin-bottom: 24px;
+        }
+        .form-group { margin-bottom: 16px; }
+        .label {
+            display: block;
+            font-size: 11px; font-weight: 700;
+            letter-spacing: .06em; text-transform: uppercase;
+            color: var(--text-dim); margin-bottom: 6px;
+        }
+        .input {
+            width: 100%; background: var(--bg);
+            border: 1px solid var(--border-2); color: var(--text);
+            border-radius: var(--radius);
+            padding: 10px 14px;
+            font-family: var(--font-body); font-size: 14px;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,110,78,.1); }
+        .input::placeholder { color: var(--text-muted); }
+        .btn {
+            width: 100%; padding: 11px;
+            background: var(--accent); color: #fff;
+            border: none; border-radius: var(--radius);
+            font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+            letter-spacing: .02em; cursor: pointer; margin-top: 8px;
+            transition: background .15s;
+        }
+        .btn:hover { background: var(--accent-dim); }
+        .error-box {
+            background: var(--danger-light); border: 1px solid rgba(220,38,38,.2);
+            color: var(--danger); border-radius: var(--radius);
+            padding: 10px 14px; font-size: 13px;
+            margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+        }
+        .auth-footer {
+            text-align: center; margin-top: 20px;
+            font-size: 13px; color: var(--text-muted);
+        }
+        .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+        .auth-footer a:hover { text-decoration: underline; }
+        .hint {
+            background: var(--bg-3); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 10px 14px;
+            font-size: 12px; color: var(--text-muted);
+            font-family: var(--font-mono); margin-top: 16px;
+        }
+        .hint strong { color: var(--text-dim); }
+        @@media (max-width: 1080px) {
+            .auth-shell {
+                grid-template-columns: 1fr;
+            }
+            .auth-visual {
+                min-height: 520px;
+            }
+            .auth-wrap {
+                padding: 32px 24px 40px;
+            }
+        }
+        @@media (max-width: 720px) {
+            body {
+                padding: 0;
+            }
+            .auth-shell {
+                min-height: 100vh;
+                border-radius: 0;
+            }
+            .auth-visual {
+                min-height: 420px;
+            }
+            .auth-visual__logo {
+                left: 12px;
+                font-size: 10px;
+            }
+            .auth-visual__stage {
+                padding: 62px 18px 62px;
+            }
+            .auth-collage {
+                aspect-ratio: 1 / 1.1;
+            }
+            .auth-banner {
+                left: 0;
+                right: 0;
+                top: 44%;
+                padding: 20px 18px;
+            }
+            .auth-banner__title {
+                font-size: 30px;
+            }
+            .auth-banner__sub {
+                font-size: 13px;
+            }
+            .auth-visual__footer {
+                inset: auto 14px 10px 14px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-shell">
+        <section class="auth-visual" aria-hidden="true">
+            <div class="auth-visual__logo">
+                <span class="material-symbols-outlined">eco</span>
+                <span>AgroSmart</span>
+            </div>
+            <div class="auth-visual__stage">
+                <div class="auth-collage">
+                    <div class="auth-collage__block auth-collage__block--rice"></div>
+                    <div class="auth-collage__block auth-collage__block--field"></div>
+                    <div class="auth-collage__block auth-collage__block--corn"></div>
+                    <div class="auth-collage__block auth-collage__block--fruits"></div>
+                    <div class="auth-collage__block auth-collage__block--cattle"></div>
+                    <div class="auth-banner">
+                        <div class="auth-banner__eyebrow">
+                            <span class="material-symbols-outlined" style="font-size:16px">agriculture</span>
+                            Plataforma rural
+                        </div>
+                        <h1 class="auth-banner__title">AgroSmart</h1>
+                        <p class="auth-banner__sub">Acompanhe propriedades, safras, estoque e alertas em uma experiencia visual inspirada em paineis do setor agropecuario.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="auth-visual__footer">
+                <span class="auth-visual__stamp">Dados atualizados em @DateTime.Now.ToString("dd/MM/yyyy")</span>
+                <span>Ambiente seguro para gestao agricola</span>
+            </div>
+        </section>
+        <div class="auth-wrap">
+            <div class="auth-panel">
+                <div class="auth-brand">
+                    <span class="material-symbols-outlined auth-brand__icon">eco</span>
+                    <span class="auth-brand__name">AgroSmart</span>
+                    <p class="auth-brand__tag">Entre no sistema para visualizar indicadores, operacoes de campo e alertas destinados ao seu perfil.</p>
+                </div>
+                @RenderBody()
+            </div>
+        </div>
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

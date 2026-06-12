@@ -1,0 +1,219 @@
+@{
+    ViewData["Title"] = "Clima";
+}
+
+<div class="page-header">
+    <div class="filter-bar">
+        <select class="input" id="filterProp" onchange="loadStations()">
+            <option value="">Todas as propriedades</option>
+        </select>
+    </div>
+    <div class="page-header__actions">
+        <button class="btn btn--primary" data-requires="manage" onclick="openModal('modalNewStation')">
+            <span class="material-symbols-outlined">add</span> Nova Estação
+        </button>
+    </div>
+</div>
+
+<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;margin-bottom:var(--space-2)">
+    <span class="material-symbols-outlined" style="color:var(--text-muted);font-size:18px">filter_list</span>
+    <span style="font-size:13px;color:var(--text-muted);white-space:nowrap">Workspace:</span>
+    <select id="wsFilter" class="input" style="width:auto;min-width:200px;max-width:280px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+        <option value="">Todos os workspaces</option>
+    </select>
+</div>
+
+<div id="stationsWrap">
+    <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
+</div>
+
+<div class="modal" id="modalNewStation">
+    <div class="modal__box">
+        <h2 class="modal__title">Nova Estação Meteorológica</h2>
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Propriedade *</label>
+                <select class="input" id="stProp"><option value="">Carregando...</option></select>
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Nome *</label>
+                <input class="input" id="stName" placeholder="Ex: Estação Norte" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Modelo</label>
+                <input class="input" id="stModel" placeholder="Ex: Davis Vantage Pro" />
+            </div>
+            <div class="form-group">
+                <label class="label">Latitude *</label>
+                <input class="input" id="stLat" type="number" step="0.000001" placeholder="-15.000000" />
+            </div>
+            <div class="form-group">
+                <label class="label">Longitude *</label>
+                <input class="input" id="stLon" type="number" step="0.000001" placeholder="-47.000000" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createStation()">Criar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewStation')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Readings panel -->
+<div id="readingsWrap" style="display:none;margin-top:var(--space-5)" class="panel">
+    <div class="panel__header">
+        <span class="material-symbols-outlined">thermostat</span>
+        <h3 class="panel__title" id="readingsTitle">Leituras</h3>
+        <button class="btn btn--sm btn--primary" id="fetchBtn" style="margin-left:auto" onclick="fetchCurrent()">
+            <span class="material-symbols-outlined">cloud_download</span> Buscar Atual
+        </button>
+    </div>
+    <div class="panel__body" id="readingsBody"></div>
+    <div class="panel__body" style="padding-top:0">
+        <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let selectedStation = null;
+let tempChartInst   = null;
+let currentWsId     = null;
+
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    selectedStation = null;
+    document.getElementById('readingsWrap').style.display = 'none';
+    refreshPropSelects(currentWsId).then(() => loadStations());
+}
+
+async function refreshPropSelects(wsId) {
+    const props     = await Auth.json('/api/v1/rural-properties' + (wsId ? `?workspaceId=${wsId}` : '')) ?? [];
+    const propSel   = document.getElementById('filterProp');
+    const stPropSel = document.getElementById('stProp');
+    propSel.innerHTML   = '<option value="">Todas as propriedades</option>';
+    stPropSel.innerHTML = '<option value="">Selecione...</option>';
+    props.forEach(p => {
+        propSel.innerHTML   += `<option value="${p.id}">${p.name}</option>`;
+        stPropSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    });
+}
+
+async function init() {
+    await initWsFilter();
+    await refreshPropSelects(null);
+    await loadStations();
+}
+
+async function loadStations() {
+    const propId = document.getElementById('filterProp').value;
+    const params = [];
+    if (propId)          params.push(`propertyId=${propId}`);
+    else if (currentWsId) params.push(`workspaceId=${currentWsId}`);
+    const url = '/api/v1/weather/stations' + (params.length ? '?' + params.join('&') : '');
+    const data   = await Auth.json(url) ?? [];
+    const wrap   = document.getElementById('stationsWrap');
+
+    if (!data.length) {
+        wrap.innerHTML = `<div class="panel"><div class="empty">
+            <span class="material-symbols-outlined">cloud_off</span>
+            <p>Nenhuma estação cadastrada</p></div></div>`;
+        return;
+    }
+    wrap.innerHTML = `<div class="stat-grid">${data.map(s => `
+        <div class="stat-card" style="cursor:pointer" onclick='selectStation("${s.id}", "${s.name}")'>
+            <div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">cloud</span></div>
+            <div class="stat-card__body">
+                <span class="stat-card__value" style="font-size:15px">${s.name}</span>
+                <span class="stat-card__label">${s.property?.name ?? '-'}</span>
+                <span class="stat-card__sub">${s.readingCount} leituras</span>
+                ${Auth.isManager() ? `<button class="btn btn--sm btn--danger" style="margin-top:8px" onclick="event.stopPropagation();deleteStation('${s.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}
+            </div>
+        </div>`).join('')}</div>`;
+}
+
+async function selectStation(id, name) {
+    selectedStation = id;
+    document.getElementById('readingsTitle').textContent = `Leituras - ${name}`;
+    document.getElementById('readingsWrap').style.display = 'block';
+    await loadReadings();
+}
+
+async function loadReadings() {
+    const data = await Auth.json(`/api/v1/weather/stations/${selectedStation}/readings?limit=24`) ?? [];
+    const body = document.getElementById('readingsBody');
+
+    if (!data.length) { body.innerHTML = '<p class="text-muted" style="font-size:13px">Sem leituras registradas.</p>'; return; }
+
+    const latest = data[0];
+    body.innerHTML = `<div class="stat-grid" style="margin-bottom:var(--space-4)">
+        ${latest.temperature != null ? `<div class="stat-card"><div class="stat-card__icon"><span class="material-symbols-outlined">thermometer</span></div><div class="stat-card__body"><span class="stat-card__value">${latest.temperature}°C</span><span class="stat-card__label">Temperatura</span></div></div>` : ''}
+        ${latest.humidity != null ? `<div class="stat-card"><div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">water_drop</span></div><div class="stat-card__body"><span class="stat-card__value">${latest.humidity}%</span><span class="stat-card__label">Umidade</span></div></div>` : ''}
+        ${latest.rainfall != null ? `<div class="stat-card"><div class="stat-card__icon"><span class="material-symbols-outlined">water</span></div><div class="stat-card__body"><span class="stat-card__value">${latest.rainfall} mm</span><span class="stat-card__label">Chuva</span></div></div>` : ''}
+        ${latest.windSpeedKmh != null ? `<div class="stat-card"><div class="stat-card__icon"><span class="material-symbols-outlined">air</span></div><div class="stat-card__body"><span class="stat-card__value">${latest.windSpeedKmh} km/h</span><span class="stat-card__label">Vento ${latest.windDirection ?? ''}</span></div></div>` : ''}
+    </div>`;
+
+    // Chart
+    const labels = data.map(r => new Date(r.recordedAt).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})).reverse();
+    const temps  = data.map(r => r.temperature).reverse();
+    if (tempChartInst) tempChartInst.destroy();
+    tempChartInst = new Chart(document.getElementById('tempChart'), {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Temperatura (°C)', data: temps, borderColor: 'rgba(249,115,22,0.8)', backgroundColor: 'rgba(249,115,22,0.1)', tension: 0.4, fill: true, pointRadius: 3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { x: { ticks: { color: '#9ca3af', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                      y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+    });
+}
+
+async function fetchCurrent() {
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined spin">sync</span> Buscando...';
+    const res = await Auth.fetch(`/api/v1/weather/stations/${selectedStation}/readings/fetch`, { method: 'POST' });
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined">cloud_download</span> Buscar Atual';
+    if (res?.ok) { toast('Leitura atualizada!'); await loadReadings(); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro ao buscar dados', 'error'); }
+}
+
+async function deleteStation(id) {
+    if (!confirm('Remover esta estação e todas as suas leituras?')) return;
+    const res = await Auth.fetch(`/api/v1/weather/stations/${id}`, { method: 'DELETE' });
+    if (res?.ok) {
+        toast('Estação removida');
+        if (selectedStation === id) {
+            selectedStation = null;
+            document.getElementById('readingsWrap').style.display = 'none';
+        }
+        await loadStations();
+    } else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+async function createStation() {
+    const body = {
+        propertyId: document.getElementById('stProp').value,
+        name: document.getElementById('stName').value,
+        model: document.getElementById('stModel').value || null,
+        latitude:  parseFloat(document.getElementById('stLat').value) || 0,
+        longitude: parseFloat(document.getElementById('stLon').value) || 0,
+    };
+    const res = await Auth.fetch('/api/v1/weather/stations', { method: 'POST', body: JSON.stringify(body) });
+    if (res?.ok) { toast('Estação criada!'); closeModal('modalNewStation'); await loadStations(); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+init();
+</script>
+}
