@@ -158,7 +158,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.HasOne(h => h.StockMovement).WithOne(s => s.HarvestInput).HasForeignKey<HarvestInput>(h => h.StockMovementId).OnDelete(DeleteBehavior.Restrict);
         });
 
-        // ── Uf / Municipio (IDs IBGE — não são auto-incremento) ──────────────
+        // ── Uf / Municipio (IDs IBGE - não são auto-incremento) ──────────────
         m.Entity<Uf>(e => {
             e.Property(u => u.Id).ValueGeneratedNever();
             e.Property(u => u.Sigla).HasMaxLength(2).IsRequired();

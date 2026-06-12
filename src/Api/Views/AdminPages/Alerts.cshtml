@@ -31,7 +31,7 @@
         <button class="btn btn--ghost" id="btnCheckStock" style="display:none" onclick="checkStock()">
             <span class="material-symbols-outlined">inventory_2</span> Verificar estoque
         </button>
-        <button class="btn btn--primary" onclick="openModal('modalNewAlert')">
+        <button class="btn btn--primary" data-requires="write" onclick="openModal('modalNewAlert')">
             <span class="material-symbols-outlined">add_alert</span> Novo Alerta
         </button>
     </div>
@@ -102,18 +102,8 @@ const typeLabels = { StockLow:'Estoque', HarvestStatus:'Safra', WeatherWarning:'
 
 let currentPage = 1;
 
-function isAdmin() {
-    try {
-        const token = localStorage.getItem('jwt');
-        if (!token) return false;
-        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        const roles = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? [];
-        return Array.isArray(roles) ? roles.includes('Admin') : roles === 'Admin';
-    } catch { return false; }
-}
-
 async function init() {
-    if (isAdmin()) document.getElementById('btnCheckStock').style.display = '';
+    if (Auth.isManager()) document.getElementById('btnCheckStock').style.display = '';
     const props = await Auth.json('/api/v1/rural-properties') ?? [];
     const sel = document.getElementById('alProp');
     props.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.name}</option>`);
@@ -154,9 +144,7 @@ async function loadAlerts(page = 1) {
             <td class="mono text-muted">${fmtDate(a.createdAt)}</td>
             <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
                 ${!a.isRead ? `<button class="btn btn--sm btn--ghost" onclick="markRead('${a.id}')">Lido</button>` : ''}
-                <button class="btn btn--sm btn--danger" onclick="deleteAlert('${a.id}')">
-                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
-                </button>
+                ${Auth.isManager() ? `<button class="btn btn--sm btn--danger" onclick="deleteAlert('${a.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}
             </td>
         </tr>`).join('')}</tbody></table></div></div>`;
 

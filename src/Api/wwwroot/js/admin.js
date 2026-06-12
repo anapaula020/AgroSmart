@@ -25,7 +25,21 @@ const Auth = {
         if (!res || !res.ok) return null;
         const ct = res.headers.get('content-type') || '';
         return ct.includes('json') ? res.json() : null;
-    }
+    },
+    // ── Role helpers ──────────────────────────────────────────────────────────
+    getRole() {
+        try {
+            const token = this.getToken();
+            if (!token) return null;
+            const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            const claim = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+            const r = payload[claim];
+            return Array.isArray(r) ? r[0] : (r ?? null);
+        } catch { return null; }
+    },
+    isAdmin()   { return this.getRole() === 'Admin'; },
+    isManager() { const r = this.getRole(); return r === 'Admin' || r === 'Gestor'; },
+    canWrite()  { const r = this.getRole(); return r === 'Admin' || r === 'Gestor' || r === 'Operador'; },
 };
 Auth.init();
 
@@ -65,6 +79,13 @@ function toast(msg, type = 'success') {
 const fmtBRL  = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 const fmtNum  = n => n != null ? Number(n).toLocaleString('pt-BR') : '—';
+
+// ── Role-based UI visibility ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    if (!Auth.canWrite())  document.querySelectorAll('[data-requires="write"]').forEach(el => el.style.display = 'none');
+    if (!Auth.isManager()) document.querySelectorAll('[data-requires="manage"]').forEach(el => el.style.display = 'none');
+    if (!Auth.isAdmin())   document.querySelectorAll('[data-requires="admin"]').forEach(el => el.style.display = 'none');
+});
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 function openModal(id) {

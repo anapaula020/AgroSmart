@@ -41,7 +41,7 @@ public class IbgeService(ILogger<IbgeService> logger)
         (53, "DF", "Distrito Federal",      5300108, "Brasília"),
     ];
 
-    // ── Seed estático — sem chamada de rede ───────────────────────────────────
+    // ── Seed estático - sem chamada de rede ───────────────────────────────────
     public async Task SeedLocalidadesAsync(AppDbContext db)
     {
         if (await db.Ufs.AnyAsync())

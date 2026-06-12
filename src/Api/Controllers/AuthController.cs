@@ -37,7 +37,7 @@ public class AuthController(
         return StatusCode(201, new AuthResponse(token, user.Email!, roles, expires));
     }
 
-    /// <summary>Login — retorna JWT</summary>
+    /// <summary>Login - retorna JWT</summary>
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]

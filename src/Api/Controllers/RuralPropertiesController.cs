@@ -40,13 +40,12 @@ public record UpdatePropertyRequest(
 public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService ibge) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private bool IsAdmin  => User.IsInRole("Admin");
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var query = db.RuralProperties.Include(p => p.Address).Include(p => p.Fields).AsQueryable();
-        if (!IsAdmin) query = query.Where(p => p.OwnerId == UserId);
+        if (!User.IsManager()) query = query.Where(p => p.OwnerId == UserId);
 
         var result = await query.OrderBy(p => p.Name).Select(p => new {
             p.Id, p.Name, p.CarNumber, p.TotalAreaHa, p.VegetationAreaHa,
@@ -70,7 +69,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
 
         return Ok(new {
             p.Id, p.Name, p.CarNumber, p.TotalAreaHa, p.VegetationAreaHa, p.OwnerId, p.CreatedAt,
@@ -90,6 +89,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePropertyRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         // Valida município/UF via IBGE (não-bloqueante se API indisponível)
         var ibgeResult = await ibge.ValidateMunicipioAsync(db, req.Address.Municipio, req.Address.Uf);
         if (!ibgeResult.Valid && ibgeResult.Error is not null && !ibgeResult.Error.Contains("unavailable"))
@@ -124,9 +124,10 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePropertyRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var p = await db.RuralProperties.FindAsync(id);
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
 
         if (req.Name is not null)             p.Name             = req.Name;
         if (req.CarNumber is not null)        p.CarNumber        = req.CarNumber;
@@ -141,9 +142,10 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
+        if (!User.IsManager()) return Forbid();
         var p = await db.RuralProperties.Include(x => x.Fields).FirstOrDefaultAsync(x => x.Id == id);
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
         if (p.Fields.Any()) return BadRequest(new ErrorResponse("Remove all fields before deleting the property"));
 
         db.RuralProperties.Remove(p);
@@ -157,7 +159,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     {
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
 
         var fields = await db.Fields
             .Include(f => f.SoilType).Include(f => f.IrrigationType)
@@ -175,9 +177,10 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     [HttpPost("{propertyId:guid}/fields")]
     public async Task<IActionResult> CreateField(Guid propertyId, [FromBody] CreateFieldRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
 
         if (!await db.SoilTypes.AnyAsync(s => s.Id == req.SoilTypeId))
             return BadRequest(new ErrorResponse("SoilType not found"));
@@ -201,9 +204,10 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     [HttpPut("{propertyId:guid}/fields/{fieldId:guid}")]
     public async Task<IActionResult> UpdateField(Guid propertyId, Guid fieldId, [FromBody] UpdateFieldRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
 
         var field = await db.Fields.FirstOrDefaultAsync(f => f.Id == fieldId && f.PropertyId == propertyId);
         if (field is null) return NotFound();
@@ -222,9 +226,10 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     [HttpDelete("{propertyId:guid}/fields/{fieldId:guid}")]
     public async Task<IActionResult> DeleteField(Guid propertyId, Guid fieldId)
     {
+        if (!User.IsManager()) return Forbid();
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!IsAdmin && p.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
 
         var field = await db.Fields.Include(f => f.Harvests)
             .FirstOrDefaultAsync(f => f.Id == fieldId && f.PropertyId == propertyId);

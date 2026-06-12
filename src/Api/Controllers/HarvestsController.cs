@@ -38,7 +38,6 @@ public record CreateProductivityRecordRequest(
 public class HarvestsController(AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private bool IsAdmin  => User.IsInRole("Admin");
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -50,7 +49,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
             .Include(h => h.Culture)
             .AsQueryable();
 
-        if (!IsAdmin)
+        if (!User.IsManager())
             query = query.Where(h => h.Field!.Property!.OwnerId == UserId);
         if (fieldId.HasValue)
             query = query.Where(h => h.FieldId == fieldId);
@@ -79,7 +78,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (h is null) return NotFound();
-        if (!IsAdmin && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
 
         return Ok(new {
             h.Id, h.Name, h.Status, h.PlantingDate, h.ExpectedHarvestDate,
@@ -97,9 +96,10 @@ public class HarvestsController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateHarvestRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var field = await db.Fields.Include(f => f.Property).FirstOrDefaultAsync(f => f.Id == req.FieldId);
         if (field is null) return BadRequest(new ErrorResponse("Field not found"));
-        if (!IsAdmin && field.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && field.Property!.OwnerId != UserId) return Forbid();
 
         if (!await db.Cultures.AnyAsync(c => c.Id == req.CultureId))
             return BadRequest(new ErrorResponse("Culture not found"));
@@ -122,10 +122,11 @@ public class HarvestsController(AppDbContext db) : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateHarvestRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (h is null) return NotFound();
-        if (!IsAdmin && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
 
         if (req.Name is not null)                    h.Name                = req.Name;
         if (req.ExpectedHarvestDate.HasValue)        h.ExpectedHarvestDate = req.ExpectedHarvestDate.Value;
@@ -142,11 +143,12 @@ public class HarvestsController(AppDbContext db) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
+        if (!User.IsManager()) return Forbid();
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .Include(x => x.HarvestInputs)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (h is null) return NotFound();
-        if (!IsAdmin && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
         if (h.HarvestInputs.Any()) return BadRequest(new ErrorResponse("Harvest has applied inputs, remove them first"));
 
         db.Harvests.Remove(h);
@@ -161,7 +163,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .FirstOrDefaultAsync(x => x.Id == harvestId);
         if (h is null) return NotFound();
-        if (!IsAdmin && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
 
         var records = await db.ProductivityRecords
             .Where(p => p.HarvestId == harvestId)
@@ -177,7 +179,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .FirstOrDefaultAsync(x => x.Id == harvestId);
         if (h is null) return NotFound();
-        if (!IsAdmin && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
 
         var record = new ProductivityRecord
         {

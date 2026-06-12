@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [Route("admin/[action]")]
+[Authorize(AuthenticationSchemes = "Identity.Application")]
 public class AdminPagesController : Controller
 {
     public IActionResult Properties() { ViewData["Title"] = "Propriedades"; return View(); }
@@ -10,4 +12,7 @@ public class AdminPagesController : Controller
     public IActionResult Stock()      { ViewData["Title"] = "Estoque";      return View(); }
     public IActionResult Weather()    { ViewData["Title"] = "Clima";        return View(); }
     public IActionResult Alerts()     { ViewData["Title"] = "Alertas";      return View(); }
+
+    [Authorize(AuthenticationSchemes = "Identity.Application", Roles = Api.Roles.Admin)]
+    public IActionResult Users()      { ViewData["Title"] = "Usuários";     return View(); }
 }

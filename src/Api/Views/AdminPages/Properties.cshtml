@@ -5,7 +5,7 @@
 <div class="page-header">
     <div></div>
     <div class="page-header__actions">
-        <button class="btn btn--primary" onclick="openModal('modalNewProperty')">
+        <button class="btn btn--primary" data-requires="write" onclick="openModal('modalNewProperty')">
             <span class="material-symbols-outlined">add</span> Nova Propriedade
         </button>
     </div>
@@ -91,8 +91,8 @@
             </div>
         </div>
         <div class="form-actions" style="margin-bottom:0">
-            <button class="btn btn--primary" onclick="saveProperty()">Salvar</button>
-            <button class="btn btn--danger" onclick="deleteProperty()">Excluir</button>
+            <button class="btn btn--primary" data-requires="write" onclick="saveProperty()">Salvar</button>
+            <button class="btn btn--danger" data-requires="manage" onclick="deleteProperty()">Excluir</button>
             <button class="btn btn--ghost" onclick="closeModal('modalDetail')">Fechar</button>
         </div>
 
@@ -133,7 +133,7 @@ let currentPropertyId = null;
     const ufs = await Auth.json('/api/v1/ibge/ufs') ?? [];
     const ufSel = document.getElementById('addrUf');
     ufSel.innerHTML = '<option value="">Selecione...</option>' +
-        ufs.map(u => `<option value="${u.sigla}">${u.sigla} — ${u.nome}</option>`).join('');
+        ufs.map(u => `<option value="${u.sigla}">${u.sigla} - ${u.nome}</option>`).join('');
 
     ufSel.addEventListener('change', async () => {
         const sigla = ufSel.value;
@@ -174,7 +174,7 @@ async function loadProperties() {
             </tr></thead>
             <tbody>${data.map(p => `<tr>
                 <td class="td--name">${p.name}</td>
-                <td class="text-muted">${p.address?.municipio ?? '—'} / ${p.address?.uf ?? '—'}</td>
+                <td class="text-muted">${p.address?.municipio ?? '-'} / ${p.address?.uf ?? '-'}</td>
                 <td class="mono">${fmtNum(p.totalAreaHa)} ha</td>
                 <td class="mono">${p.fieldCount}</td>
                 <td class="td--right">
@@ -236,11 +236,9 @@ function renderFields(fields) {
         </tr></thead><tbody>${fields.map(f => `<tr>
             <td>${f.name}</td>
             <td class="mono">${fmtNum(f.areaHa)}</td>
-            <td class="text-muted">${f.soilType ?? '—'}</td>
-            <td class="text-muted">${f.irrigationType ?? '—'}</td>
-            <td class="td--right"><button class="btn btn--sm btn--danger" onclick="deleteField('${f.id}')">
-                <span class="material-symbols-outlined" style="font-size:14px">delete</span>
-            </button></td>
+            <td class="text-muted">${f.soilType ?? '-'}</td>
+            <td class="text-muted">${f.irrigationType ?? '-'}</td>
+            <td class="td--right">${Auth.isManager() ? `<button class="btn btn--sm btn--danger" onclick="deleteField('${f.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}</td>
         </tr>`).join('')}</tbody></table></div>`;
 }
 

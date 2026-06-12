@@ -13,10 +13,10 @@
         </label>
     </div>
     <div class="page-header__actions">
-        <button class="btn btn--ghost" onclick="openModal('modalMovement')">
+        <button class="btn btn--ghost" data-requires="write" onclick="openModal('modalMovement')">
             <span class="material-symbols-outlined">swap_vert</span> Movimentar
         </button>
-        <button class="btn btn--primary" onclick="openModal('modalNewItem')">
+        <button class="btn btn--primary" data-requires="write" onclick="openModal('modalNewItem')">
             <span class="material-symbols-outlined">add</span> Novo Item
         </button>
     </div>
@@ -145,7 +145,7 @@ async function loadStock() {
     // Populate movement select
     const movSel = document.getElementById('movItem');
     movSel.innerHTML = '<option value="">Selecione...</option>' +
-        allItems.map(i => `<option value="${i.id}">${i.property?.name} — ${i.inputProduct?.name} (${fmtNum(i.quantityInStock)} ${i.inputProduct?.unit})</option>`).join('');
+        allItems.map(i => `<option value="${i.id}">${i.property?.name} - ${i.inputProduct?.name} (${fmtNum(i.quantityInStock)} ${i.inputProduct?.unit})</option>`).join('');
 
     const wrap = document.getElementById('listWrap');
     if (!items.length) {
@@ -158,19 +158,17 @@ async function loadStock() {
         <table class="table"><thead><tr>
             <th>Produto</th><th>Tipo</th><th>Propriedade</th><th>Qtd. Atual</th><th>Mínimo</th><th>Status</th><th class="th--right">Ações</th>
         </tr></thead><tbody>${items.map(i => `<tr>
-            <td class="td--name">${i.inputProduct?.name ?? '—'}</td>
-            <td class="text-muted">${i.inputProduct?.type ?? '—'}</td>
-            <td class="text-muted">${i.property?.name ?? '—'}</td>
+            <td class="td--name">${i.inputProduct?.name ?? '-'}</td>
+            <td class="text-muted">${i.inputProduct?.type ?? '-'}</td>
+            <td class="text-muted">${i.property?.name ?? '-'}</td>
             <td class="mono ${i.isLow ? 'text-warn' : ''}">${fmtNum(i.quantityInStock)} ${i.inputProduct?.unit ?? ''}</td>
             <td class="mono text-muted">${fmtNum(i.minimumStock)}</td>
             <td>${i.isLow
                 ? '<span class="badge sev--high">Baixo</span>'
                 : '<span class="badge badge--active">OK</span>'}</td>
             <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
-                <button class="btn btn--sm btn--ghost" onclick="openEditItem('${i.id}')">Editar</button>
-                <button class="btn btn--sm btn--danger" onclick="deleteItem('${i.id}')">
-                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
-                </button>
+                ${Auth.canWrite() ? `<button class="btn btn--sm btn--ghost" onclick="openEditItem('${i.id}')">Editar</button>` : ''}
+                ${Auth.isManager() ? `<button class="btn btn--sm btn--danger" onclick="deleteItem('${i.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}
             </td>
         </tr>`).join('')}</tbody></table></div></div>`;
 }

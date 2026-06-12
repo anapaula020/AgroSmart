@@ -24,12 +24,11 @@ public record CreateStationRequest(
 public class WeatherController(AppDbContext db, OpenWeatherService weather) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private bool IsAdmin  => User.IsInRole("Admin");
 
     private async Task<bool> CanAccessProperty(Guid propertyId)
     {
         var p = await db.RuralProperties.FindAsync(propertyId);
-        return p is not null && (IsAdmin || p.OwnerId == UserId);
+        return p is not null && (User.IsManager() || p.OwnerId == UserId);
     }
 
     // ── Stations ──────────────────────────────────────────────────────────────
@@ -37,7 +36,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     public async Task<IActionResult> GetStations([FromQuery] Guid? propertyId = null)
     {
         var query = db.WeatherStations.Include(s => s.Property).AsQueryable();
-        if (!IsAdmin) query = query.Where(s => s.Property!.OwnerId == UserId);
+        if (!User.IsManager()) query = query.Where(s => s.Property!.OwnerId == UserId);
         if (propertyId.HasValue) query = query.Where(s => s.PropertyId == propertyId);
 
         return Ok(await query.OrderBy(s => s.Name).Select(s => new {
@@ -53,7 +52,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
         var s = await db.WeatherStations.Include(x => x.Property)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         var latest = await db.WeatherReadings
             .Where(r => r.StationId == id)
@@ -74,6 +73,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     [HttpPost("stations")]
     public async Task<IActionResult> CreateStation([FromBody] CreateStationRequest req)
     {
+        if (!User.IsManager()) return Forbid();
         if (!await CanAccessProperty(req.PropertyId)) return Forbid();
 
         var station = new WeatherStation
@@ -92,9 +92,10 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     [HttpDelete("stations/{id:guid}")]
     public async Task<IActionResult> DeleteStation(Guid id)
     {
+        if (!User.IsManager()) return Forbid();
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == id);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
         db.WeatherStations.Remove(s);
         await db.SaveChangesAsync();
         return NoContent();
@@ -110,7 +111,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     {
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         var query = db.WeatherReadings.Where(r => r.StationId == stationId);
         if (from.HasValue) query = query.Where(r => r.RecordedAt >= from);
@@ -129,9 +130,10 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     [HttpPost("stations/{stationId:guid}/readings/fetch")]
     public async Task<IActionResult> FetchCurrent(Guid stationId)
     {
+        if (!User.CanWrite()) return Forbid();
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         if (!weather.IsConfigured)
             return BadRequest(new ErrorResponse("OpenWeather API key not configured. Set OPENWEATHER_API_KEY in .env"));
@@ -153,9 +155,10 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     [HttpPost("stations/{stationId:guid}/readings")]
     public async Task<IActionResult> AddReading(Guid stationId, [FromBody] AddReadingRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         var reading = new WeatherReading
         {
@@ -180,7 +183,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     {
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         var forecasts = await db.WeatherForecasts
             .Where(f => f.StationId == stationId && f.ForecastDate >= DateTime.UtcNow.Date)
@@ -198,7 +201,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     {
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         if (!weather.IsConfigured)
             return BadRequest(new ErrorResponse("OpenWeather API key not configured. Set OPENWEATHER_API_KEY in .env"));

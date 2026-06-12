@@ -96,14 +96,14 @@ public static class SeedDataService
         var prop1Id = Ids.Prop1;
         if (await db.RuralProperties.AnyAsync(p => p.Id == prop1Id))
         {
-            Log.Information("Seed data already present — skipping.");
+            Log.Information("Seed data already present - skipping.");
             return;
         }
 
         Log.Information("Seeding demonstration data...");
 
-        var user1 = await EnsureUser(userManager, Ids.User1, "fazendeiro@demo.com", "Demo@1234!", "User");
-        var user2 = await EnsureUser(userManager, Ids.User2, "gestor@demo.com",     "Demo@1234!", "User");
+        var user1 = await EnsureUser(userManager, Ids.User1, "gestor@demo.com",   "Demo@1234!", Api.Roles.Gestor);
+        var user2 = await EnsureUser(userManager, Ids.User2, "operador@demo.com", "Demo@1234!", Api.Roles.Operador);
 
         await SeedLookups(db);
         await db.SaveChangesAsync(); // SoilType, IrrigationType, Culture, InputProduct
@@ -235,13 +235,13 @@ public static class SeedDataService
             new Field
             {
                 Id = Ids.FieldP1A, PropertyId = Ids.Prop1,
-                Name = "Talhão A — Soja", AreaHa = 320.0m,
+                Name = "Talhão A - Soja", AreaHa = 320.0m,
                 SoilTypeId = Ids.SoilLatossolo, IrrigationTypeId = Ids.IrrigPivot
             },
             new Field
             {
                 Id = Ids.FieldP1B, PropertyId = Ids.Prop1,
-                Name = "Talhão B — Milho", AreaHa = 280.0m,
+                Name = "Talhão B - Milho", AreaHa = 280.0m,
                 SoilTypeId = Ids.SoilArgissolo, IrrigationTypeId = Ids.IrrigPivot
             },
             new Field
@@ -264,7 +264,7 @@ public static class SeedDataService
             {
                 Id = Ids.Harvest1, FieldId = Ids.FieldP1A, CultureId = Ids.CultureSoja,
                 ResponsibleUserId = userId,
-                Name = "Safra Soja 2024/25 — Talhão A",
+                Name = "Safra Soja 2024/25 - Talhão A",
                 PlantingDate = new DateOnly(2024, 10, 15),
                 ExpectedHarvestDate = new DateOnly(2025, 2, 20),
                 ActualHarvestDate   = new DateOnly(2025, 2, 25),
@@ -276,7 +276,7 @@ public static class SeedDataService
             {
                 Id = Ids.Harvest2, FieldId = Ids.FieldP1B, CultureId = Ids.CultureMilho,
                 ResponsibleUserId = userId,
-                Name = "Safra Milho 2024/25 — Talhão B",
+                Name = "Safra Milho 2024/25 - Talhão B",
                 PlantingDate = new DateOnly(2024, 11, 5),
                 ExpectedHarvestDate = new DateOnly(2025, 4, 10),
                 Status = HarvestStatus.InProgress,
@@ -286,7 +286,7 @@ public static class SeedDataService
             {
                 Id = Ids.Harvest3, FieldId = Ids.FieldP2A, CultureId = Ids.CultureFeijao,
                 ResponsibleUserId = userId,
-                Name = "Safra Feijão 2025 — Área Principal",
+                Name = "Safra Feijão 2025 - Área Principal",
                 PlantingDate = new DateOnly(2025, 1, 20),
                 ExpectedHarvestDate = new DateOnly(2025, 4, 20),
                 Status = HarvestStatus.Planned,
@@ -342,14 +342,14 @@ public static class SeedDataService
             {
                 Id = Ids.Mov1, StockItemId = Ids.Stock1, UserId = userId,
                 Type = MovementType.Entrada, Quantity = 5000.0m,
-                Reason = "Compra NF 4521 — Agrostore Palmas",
+                Reason = "Compra NF 4521 - Agrostore Palmas",
                 MovedAt = new DateTime(2024, 9, 10, 8, 0, 0, DateTimeKind.Utc)
             },
             new StockMovement
             {
                 Id = Ids.Mov2, StockItemId = Ids.Stock2, UserId = userId,
                 Type = MovementType.Entrada, Quantity = 400.0m,
-                Reason = "Compra NF 4522 — Agrostore Palmas",
+                Reason = "Compra NF 4522 - Agrostore Palmas",
                 MovedAt = new DateTime(2024, 9, 10, 8, 30, 0, DateTimeKind.Utc)
             },
             new StockMovement
@@ -364,14 +364,14 @@ public static class SeedDataService
             {
                 Id = Ids.Mov4, StockItemId = Ids.Stock1, UserId = userId,
                 Type = MovementType.Saida, Quantity = 800.0m,
-                Reason = "Aplicação adubação de cobertura — Talhão A",
+                Reason = "Aplicação adubação de cobertura - Talhão A",
                 MovedAt = new DateTime(2024, 12, 5, 7, 0, 0, DateTimeKind.Utc)
             },
             new StockMovement
             {
                 Id = Ids.Mov5, StockItemId = Ids.Stock3, UserId = userId,
                 Type = MovementType.Saida, Quantity = 272.0m,
-                Reason = "Uso no plantio — Talhão A (320 ha × 0,85 sc/ha)",
+                Reason = "Uso no plantio - Talhão A (320 ha × 0,85 sc/ha)",
                 MovedAt = new DateTime(2024, 10, 14, 6, 0, 0, DateTimeKind.Utc)
             }
         );
@@ -382,13 +382,13 @@ public static class SeedDataService
             {
                 Id = Ids.HInput1, HarvestId = Ids.Harvest1, StockMovementId = Ids.Mov5,
                 AppliedAt = new DateTime(2024, 10, 14, 6, 0, 0, DateTimeKind.Utc),
-                QuantityUsed = 272.0m, ApplicationMethod = "Plantio mecanizado — plantadeira 24 linhas"
+                QuantityUsed = 272.0m, ApplicationMethod = "Plantio mecanizado - plantadeira 24 linhas"
             },
             new HarvestInput
             {
                 Id = Ids.HInput2, HarvestId = Ids.Harvest1, StockMovementId = Ids.Mov4,
                 AppliedAt = new DateTime(2024, 12, 5, 7, 0, 0, DateTimeKind.Utc),
-                QuantityUsed = 800.0m, ApplicationMethod = "Aplicação aérea — adubação nitrogenada de cobertura"
+                QuantityUsed = 800.0m, ApplicationMethod = "Aplicação aérea - adubação nitrogenada de cobertura"
             }
         );
     }
@@ -414,7 +414,7 @@ public static class SeedDataService
                 Id = Ids.Alert2, CreatedByUserId = userId,
                 Type = AlertType.HarvestStatus, Severity = AlertSeverity.Medium,
                 Title = "Safra de milho em andamento",
-                Message = "A safra 'Safra Milho 2024/25 — Talhão B' está em progresso. Colheita prevista para 10/04/2025. Monitorar umidade dos grãos na fase final.",
+                Message = "A safra 'Safra Milho 2024/25 - Talhão B' está em progresso. Colheita prevista para 10/04/2025. Monitorar umidade dos grãos na fase final.",
                 PropertyId = Ids.Prop1, HarvestId = Ids.Harvest2, IsRead = false,
                 CreatedAt = DateTime.UtcNow.AddHours(-1),
                 ExpiresAt = new DateTime(2025, 4, 15, 0, 0, 0, DateTimeKind.Utc)

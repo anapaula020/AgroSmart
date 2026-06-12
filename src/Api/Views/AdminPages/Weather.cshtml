@@ -9,7 +9,7 @@
         </select>
     </div>
     <div class="page-header__actions">
-        <button class="btn btn--primary" onclick="openModal('modalNewStation')">
+        <button class="btn btn--primary" data-requires="manage" onclick="openModal('modalNewStation')">
             <span class="material-symbols-outlined">add</span> Nova Estação
         </button>
     </div>
@@ -99,18 +99,16 @@ async function loadStations() {
             <div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">cloud</span></div>
             <div class="stat-card__body">
                 <span class="stat-card__value" style="font-size:15px">${s.name}</span>
-                <span class="stat-card__label">${s.property?.name ?? '—'}</span>
+                <span class="stat-card__label">${s.property?.name ?? '-'}</span>
                 <span class="stat-card__sub">${s.readingCount} leituras</span>
-                <button class="btn btn--sm btn--danger" style="margin-top:8px" onclick="event.stopPropagation();deleteStation('${s.id}')">
-                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
-                </button>
+                ${Auth.isManager() ? `<button class="btn btn--sm btn--danger" style="margin-top:8px" onclick="event.stopPropagation();deleteStation('${s.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}
             </div>
         </div>`).join('')}</div>`;
 }
 
 async function selectStation(id, name) {
     selectedStation = id;
-    document.getElementById('readingsTitle').textContent = `Leituras — ${name}`;
+    document.getElementById('readingsTitle').textContent = `Leituras - ${name}`;
     document.getElementById('readingsWrap').style.display = 'block';
     await loadReadings();
 }

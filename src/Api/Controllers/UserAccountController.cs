@@ -24,7 +24,7 @@ public class UserAccountController(
         JwtBearerDefaults.AuthenticationScheme + "," +
         Api.Middleware.ApiKeyAuthHandler.SchemeName;
 
-    // ── Página — protegida via cookie Identity ────────────────────────────────
+    // ── Página - protegida via cookie Identity ────────────────────────────────
     [HttpGet("profile")]
     [Authorize(AuthenticationSchemes = "Identity.Application")]
     public async Task<IActionResult> Profile()

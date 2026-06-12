@@ -30,12 +30,11 @@ public record CreateMovementRequest(
 public class StockController(AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private bool IsAdmin  => User.IsInRole("Admin");
 
     private async Task<bool> CanAccessProperty(Guid propertyId)
     {
         var prop = await db.RuralProperties.FindAsync(propertyId);
-        return prop is not null && (IsAdmin || prop.OwnerId == UserId);
+        return prop is not null && (User.IsManager() || prop.OwnerId == UserId);
     }
 
     // ── Stock Items ───────────────────────────────────────────────────────────
@@ -47,7 +46,7 @@ public class StockController(AppDbContext db) : ControllerBase
             .Include(s => s.InputProduct)
             .AsQueryable();
 
-        if (!IsAdmin)
+        if (!User.IsManager())
             query = query.Where(s => s.Property!.OwnerId == UserId);
         if (propertyId.HasValue)
             query = query.Where(s => s.PropertyId == propertyId);
@@ -72,7 +71,7 @@ public class StockController(AppDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (s is null) return NotFound();
-        if (!IsAdmin && s.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
 
         return Ok(new {
             s.Id, s.QuantityInStock, s.MinimumStock, s.UnitCost,
@@ -88,6 +87,7 @@ public class StockController(AppDbContext db) : ControllerBase
     [HttpPost("items")]
     public async Task<IActionResult> CreateItem([FromBody] CreateStockItemRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         if (!await CanAccessProperty(req.PropertyId)) return Forbid();
 
         if (!await db.InputProducts.AnyAsync(i => i.Id == req.InputProductId))
@@ -112,9 +112,10 @@ public class StockController(AppDbContext db) : ControllerBase
     [HttpPut("items/{id:guid}")]
     public async Task<IActionResult> UpdateItem(Guid id, [FromBody] UpdateStockItemRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var item = await db.StockItems.Include(s => s.Property).FirstOrDefaultAsync(s => s.Id == id);
         if (item is null) return NotFound();
-        if (!IsAdmin && item.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && item.Property!.OwnerId != UserId) return Forbid();
 
         if (req.MinimumStock.HasValue) item.MinimumStock = req.MinimumStock.Value;
         if (req.UnitCost.HasValue)     item.UnitCost     = req.UnitCost.Value;
@@ -127,10 +128,11 @@ public class StockController(AppDbContext db) : ControllerBase
     [HttpDelete("items/{id:guid}")]
     public async Task<IActionResult> DeleteItem(Guid id)
     {
+        if (!User.IsManager()) return Forbid();
         var item = await db.StockItems.Include(s => s.Property).Include(s => s.Movements)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (item is null) return NotFound();
-        if (!IsAdmin && item.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && item.Property!.OwnerId != UserId) return Forbid();
         if (item.Movements.Any()) return BadRequest(new ErrorResponse("Stock item has movements, cannot delete"));
 
         db.StockItems.Remove(item);
@@ -144,7 +146,7 @@ public class StockController(AppDbContext db) : ControllerBase
     {
         var item = await db.StockItems.Include(s => s.Property).FirstOrDefaultAsync(s => s.Id == itemId);
         if (item is null) return NotFound();
-        if (!IsAdmin && item.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && item.Property!.OwnerId != UserId) return Forbid();
 
         var movements = await db.StockMovements
             .Where(m => m.StockItemId == itemId)
@@ -158,9 +160,10 @@ public class StockController(AppDbContext db) : ControllerBase
     [HttpPost("items/{itemId:guid}/movements")]
     public async Task<IActionResult> AddMovement(Guid itemId, [FromBody] CreateMovementRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         var item = await db.StockItems.Include(s => s.Property).FirstOrDefaultAsync(s => s.Id == itemId);
         if (item is null) return NotFound();
-        if (!IsAdmin && item.Property!.OwnerId != UserId) return Forbid();
+        if (!User.IsManager() && item.Property!.OwnerId != UserId) return Forbid();
 
         // Valida saldo para saída
         if (req.Type == MovementType.Saida && item.QuantityInStock < req.Quantity)

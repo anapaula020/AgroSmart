@@ -13,7 +13,7 @@
         </select>
     </div>
     <div class="page-header__actions">
-        <button class="btn btn--primary" onclick="openNewHarvestModal()">
+        <button class="btn btn--primary" data-requires="write" onclick="openNewHarvestModal()">
             <span class="material-symbols-outlined">add</span> Nova Safra
         </button>
     </div>
@@ -124,17 +124,15 @@ async function loadHarvests() {
             <th>Nome</th><th>Cultura</th><th>Talhão</th><th>Plantio</th><th>Colheita Prev.</th><th>Rendimento</th><th>Status</th><th class="th--right">Ações</th>
         </tr></thead><tbody>${harvestsData.map(h => `<tr>
             <td class="td--name">${h.name}</td>
-            <td>${h.culture?.commonName ?? '—'}</td>
-            <td class="text-muted">${h.field?.name ?? '—'}</td>
+            <td>${h.culture?.commonName ?? '-'}</td>
+            <td class="text-muted">${h.field?.name ?? '-'}</td>
             <td class="mono">${fmtDate(h.plantingDate)}</td>
             <td class="mono">${fmtDate(h.expectedHarvestDate)}</td>
             <td class="mono">${h.actualYieldTons != null ? h.actualYieldTons + ' ton' : (h.estimatedYieldTons + ' ton est.')}</td>
             <td><span class="badge ${statusClass[h.status] ?? ''}">${statusLabels[h.status] ?? h.status}</span></td>
             <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
-                <button class="btn btn--sm btn--ghost" onclick="openEditHarvestById('${h.id}')">Editar</button>
-                <button class="btn btn--sm btn--danger" onclick="deleteHarvest('${h.id}')">
-                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
-                </button>
+                ${Auth.canWrite() ? `<button class="btn btn--sm btn--ghost" onclick="openEditHarvestById('${h.id}')">Editar</button>` : ''}
+                ${Auth.isManager() ? `<button class="btn btn--sm btn--danger" onclick="deleteHarvest('${h.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}
             </td>
         </tr>`).join('')}</tbody></table></div></div>`;
 }

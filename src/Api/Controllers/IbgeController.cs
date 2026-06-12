@@ -84,7 +84,7 @@ public class IbgeController(AppDbContext db, IHttpClientFactory httpFactory, ICo
             }
             catch
             {
-                // IBGE API unavailable — return what we have
+                // IBGE API unavailable - return what we have
             }
         }
 

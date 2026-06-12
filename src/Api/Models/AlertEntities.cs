@@ -14,7 +14,7 @@ public class Alert : BaseEntity
     public DateTime?     ReadAt          { get; set; }
     public DateTime?     ExpiresAt       { get; set; }
 
-    // Referências opcionais — um alerta pode estar ligado a propriedade e/ou safra
+    // Referências opcionais - um alerta pode estar ligado a propriedade e/ou safra
     public Guid?         PropertyId      { get; set; }
     public Guid?         HarvestId       { get; set; }
     public Guid?         StockItemId     { get; set; }

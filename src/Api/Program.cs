@@ -43,7 +43,7 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// ── JWT + ApiKey — JWT como scheme padrão (sobrescreve cookie do Identity) ────
+// ── JWT + ApiKey - JWT como scheme padrão (sobrescreve cookie do Identity) ────
 // AddIdentity define DefaultAuthenticateScheme = "Identity.Application" (cookie).
 // Sobrescrevemos aqui para que [Authorize] nas API controllers use JWT por padrão,
 // retornando 401 em vez de redirecionar para /Account/Login (que causaria 404).
@@ -220,7 +220,7 @@ static async Task InitializeDatabaseAsync(IServiceProvider services)
             else
                 await db.Database.MigrateAsync();
 
-            foreach (var role in new[] { "Admin", "User" })
+            foreach (var role in new[] { Api.Roles.Admin, Api.Roles.Gestor, Api.Roles.Operador, Api.Roles.Consulta, "User" })
                 if (!await roleManager.RoleExistsAsync(role))
                     await roleManager.CreateAsync(new IdentityRole(role));
 

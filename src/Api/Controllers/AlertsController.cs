@@ -26,7 +26,6 @@ public record CreateAlertRequest(
 public class AlertsController(AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private bool IsAdmin  => User.IsInRole("Admin");
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -40,7 +39,7 @@ public class AlertsController(AppDbContext db) : ControllerBase
         var query = db.Alerts.AsQueryable();
 
         // Usuário vê apenas alertas seus ou das suas propriedades
-        if (!IsAdmin)
+        if (!User.IsManager())
             query = query.Where(a =>
                 a.CreatedByUserId == UserId ||
                 (a.PropertyId != null && db.RuralProperties.Any(p => p.Id == a.PropertyId && p.OwnerId == UserId)));
@@ -76,7 +75,7 @@ public class AlertsController(AppDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (a is null) return NotFound();
-        if (!IsAdmin && a.CreatedByUserId != UserId) return Forbid();
+        if (!User.IsManager() && a.CreatedByUserId != UserId) return Forbid();
 
         return Ok(new {
             a.Id, a.Type, a.Severity, a.Title, a.Message,
@@ -93,6 +92,7 @@ public class AlertsController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateAlertRequest req)
     {
+        if (!User.CanWrite()) return Forbid();
         // Valida referências opcionais
         if (req.PropertyId.HasValue && !await db.RuralProperties.AnyAsync(p => p.Id == req.PropertyId))
             return BadRequest(new ErrorResponse("Property not found"));
@@ -122,7 +122,7 @@ public class AlertsController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> MarkRead(Guid id)
     {
         var a = await db.Alerts.FirstOrDefaultAsync(x => x.Id == id &&
-            (IsAdmin || x.CreatedByUserId == UserId));
+            (User.IsManager() || x.CreatedByUserId == UserId));
         if (a is null) return NotFound();
         a.IsRead = true; a.ReadAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -133,7 +133,7 @@ public class AlertsController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> MarkAllRead()
     {
         var query = db.Alerts.Where(a => !a.IsRead);
-        if (!IsAdmin) query = query.Where(a => a.CreatedByUserId == UserId);
+        if (!User.IsManager()) query = query.Where(a => a.CreatedByUserId == UserId);
 
         var alerts = await query.ToListAsync();
         var now    = DateTime.UtcNow;
@@ -145,8 +145,9 @@ public class AlertsController(AppDbContext db) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
+        if (!User.IsManager()) return Forbid();
         var a = await db.Alerts.FirstOrDefaultAsync(x => x.Id == id &&
-            (IsAdmin || x.CreatedByUserId == UserId));
+            (User.IsManager() || x.CreatedByUserId == UserId));
         if (a is null) return NotFound();
         db.Alerts.Remove(a);
         await db.SaveChangesAsync();
@@ -155,7 +156,7 @@ public class AlertsController(AppDbContext db) : ControllerBase
 
     // ── Auto-generate: verifica estoque baixo e cria alertas ─────────────────
     [HttpPost("check-stock")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = $"{Api.Roles.Admin},{Api.Roles.Gestor}")]
     public async Task<IActionResult> CheckStockAlerts()
     {
         var lowItems = await db.StockItems

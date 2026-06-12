@@ -153,7 +153,7 @@ public class ApiKeysController(AppDbContext db, ApiKeyService apiKeyService) : C
         db.ApiKeys.Add(key);
         await db.SaveChangesAsync();
 
-        // Retorna o valor raw APENAS na criação — não é armazenado
+        // Retorna o valor raw APENAS na criação - não é armazenado
         return CreatedAtAction(nameof(GetAll), new {
             key.Id, key.Name, key.Prefix, key.Scope, key.ExpiresAt,
             RawKey = rawKey,
