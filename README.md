@@ -13,8 +13,9 @@ Os usuários abaixo são criados automaticamente ao subir o ambiente com `make u
 | Email | Senha | Role |
 |---|---|---|
 | `admin@admin.com` | `Admin@1234!` | Admin |
-| `gestor@demo.com` | `Demo@1234!` | Gestor |
-| `operador@demo.com` | `Demo@1234!` | Operador |
+| `agronomo@demo.com` | `Demo@1234!` | Agrônomo |
+| `tecnico@demo.com` | `Demo@1234!` | Técnico  |
+| `produtor@demo.com` | `Demo@1234!` | Produtor  |
 
 ---
 
