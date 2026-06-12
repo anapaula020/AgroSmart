@@ -1,0 +1,293 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="hero" style="background:none">
+    <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&q=80"
+         alt="Paisagem agrícola"
+         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" />
+    <div class="hero__overlay" style="background:linear-gradient(90deg,rgba(0,0,0,.65) 0%,rgba(0,0,0,.2) 100%)"></div>
+    <div class="hero__content">
+        <h2 class="hero__title">Bom dia! 🌾</h2>
+        <p class="hero__sub" id="heroSub">Carregando dados...</p>
+    </div>
+</div>
+
+<!-- ── Filtro de workspace ───────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) 0;margin-bottom:var(--space-2)">
+    <span class="material-symbols-outlined" style="color:var(--text-muted);font-size:18px">filter_list</span>
+    <span style="font-size:13px;color:var(--text-muted);white-space:nowrap">Workspace:</span>
+    <select id="wsFilter" class="input" style="width:auto;min-width:220px;max-width:320px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+        <option value="">Todos os workspaces</option>
+    </select>
+    <span id="wsFilterLoading" style="font-size:12px;color:var(--text-muted)">Carregando...</span>
+</div>
+
+<div class="stat-grid" id="statGrid">
+    <div class="stat-card">
+        <div class="stat-card__icon"><span class="material-symbols-outlined">landscape</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statProps">-</span>
+            <span class="stat-card__label">Propriedades</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card__icon stat-card__icon--accent"><span class="material-symbols-outlined">grass</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statHarvests">-</span>
+            <span class="stat-card__label">Safras Ativas</span>
+        </div>
+    </div>
+    <div class="stat-card" id="cardLowStock">
+        <div class="stat-card__icon stat-card__icon--warn"><span class="material-symbols-outlined">warning</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statLowStock">-</span>
+            <span class="stat-card__label">Estoque Baixo</span>
+        </div>
+    </div>
+    <div class="stat-card" id="cardAlerts">
+        <div class="stat-card__icon stat-card__icon--warn"><span class="material-symbols-outlined">notifications</span></div>
+        <div class="stat-card__body">
+            <span class="stat-card__value" id="statAlerts">-</span>
+            <span class="stat-card__label">Alertas</span>
+            <span class="stat-card__sub" id="statAlertsSub"></span>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="panel">
+        <div class="panel__header">
+            <span class="material-symbols-outlined">bar_chart</span>
+            <h3 class="panel__title">Safras por Status</h3>
+        </div>
+        <div class="panel__body">
+            <div class="chart-wrap">
+                <canvas id="harvestChart"></canvas>
+                <div class="chart-empty" id="harvestEmpty">
+                    <span class="material-symbols-outlined">grass</span>
+                    <p>Nenhuma safra cadastrada</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel__header">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <h3 class="panel__title">Estoque por Produto</h3>
+        </div>
+        <div class="panel__body">
+            <div class="chart-wrap">
+                <canvas id="stockChart"></canvas>
+                <div class="chart-empty" id="stockEmpty">
+                    <span class="material-symbols-outlined">inventory_2</span>
+                    <p>Nenhum item em estoque</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alertas críticos -->
+<div class="panel" id="alertsPanel" style="display:none;margin-bottom:var(--space-5)">
+    <div class="panel__header">
+        <span class="material-symbols-outlined" style="color:var(--danger)">notifications_active</span>
+        <h3 class="panel__title">Alertas Não Lidos</h3>
+        <a href="/admin/alerts" class="btn btn--sm btn--ghost" style="margin-left:auto">Ver todos →</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+        <table class="table" id="alertsTable">
+            <thead><tr><th>Severidade</th><th>Título</th><th>Mensagem</th><th>Data</th></tr></thead>
+            <tbody id="alertsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Safras recentes -->
+<div class="panel">
+    <div class="panel__header">
+        <span class="material-symbols-outlined">schedule</span>
+        <h3 class="panel__title">Safras em Andamento</h3>
+        <a href="/admin/harvests" class="btn btn--sm btn--ghost" style="margin-left:auto">Ver todas →</a>
+    </div>
+    <div class="panel__body panel__body--flush">
+        <div id="harvestsLoading" class="loading-state">
+            <span class="material-symbols-outlined spin">sync</span> Carregando...
+        </div>
+        <table class="table" id="harvestsTable" style="display:none">
+            <thead><tr><th>Nome</th><th>Cultura</th><th>Talhão</th><th>Plantio</th><th>Previsão</th><th>Status</th></tr></thead>
+            <tbody id="harvestsBody"></tbody>
+        </table>
+        <div class="empty" id="harvestsEmpty" style="display:none">
+            <span class="material-symbols-outlined">grass</span>
+            <p>Nenhuma safra em andamento</p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const sevClass  = { Low:'sev--low', Medium:'sev--medium', High:'sev--high', Critical:'sev--critical' };
+const sevLabels = { Low:'Baixa', Medium:'Média', High:'Alta', Critical:'Crítica' };
+const stLabels  = { Planned:'Planejada', InProgress:'Em Andamento', Harvested:'Colhida', Lost:'Perdida' };
+const stColors  = ['rgba(59,130,246,0.7)','rgba(0,229,160,0.7)','rgba(34,197,94,0.7)','rgba(239,68,68,0.7)'];
+
+let harvestChartInst = null;
+let stockChartInst   = null;
+
+// ── Workspace filter init ─────────────────────────────────────────────────────
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    const loading    = document.getElementById('wsFilterLoading');
+    loading.style.display = 'none';
+    if (!workspaces?.length) return;
+
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value       = ws.id;
+        opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    const wsId = document.getElementById('wsFilter').value || null;
+    loadDashboard(wsId);
+}
+
+// ── Build query string ────────────────────────────────────────────────────────
+function qs(wsId) { return wsId ? `?workspaceId=${wsId}` : ''; }
+
+// ── Main data load ────────────────────────────────────────────────────────────
+async function loadDashboard(wsId) {
+    // Reset loading state
+    document.getElementById('heroSub').textContent = 'Carregando dados...';
+    document.getElementById('harvestsLoading').style.display = 'flex';
+    document.getElementById('harvestsTable').style.display   = 'none';
+    document.getElementById('harvestsEmpty').style.display   = 'none';
+    document.getElementById('alertsPanel').style.display     = 'none';
+    document.getElementById('cardLowStock').classList.remove('stat-card--warn');
+    document.getElementById('cardAlerts').classList.remove('stat-card--warn');
+
+    // Reset charts
+    if (harvestChartInst) { harvestChartInst.destroy(); harvestChartInst = null; }
+    if (stockChartInst)   { stockChartInst.destroy();   stockChartInst   = null; }
+    const hCanvas = document.getElementById('harvestChart');
+    const sCanvas = document.getElementById('stockChart');
+    hCanvas.style.display = '';
+    sCanvas.style.display = '';
+    document.getElementById('harvestEmpty').style.display = 'flex';
+    document.getElementById('stockEmpty').style.display   = 'flex';
+
+    try {
+        const q = qs(wsId);
+        const [props, harvests, stockItems, alertsData] = await Promise.all([
+            Auth.json(`/api/v1/rural-properties${q}`) ?? [],
+            Auth.json(`/api/v1/harvests${q}`) ?? [],
+            Auth.json(`/api/v1/stock/items${q}`) ?? [],
+            Auth.json(`/api/v1/alerts?unreadOnly=true&pageSize=5${wsId ? '&workspaceId='+wsId : ''}`)
+        ]);
+
+        const activeHarvests = (harvests||[]).filter(h => h.status === 'InProgress');
+        const lowStock       = (stockItems||[]).filter(s => s.isLow);
+        const alerts         = alertsData?.items ?? [];
+        const alertTotal     = alertsData?.total ?? 0;
+        const criticalCount  = alerts.filter(a => a.severity === 'Critical').length;
+
+        // Hero
+        const wsName = wsId ? ` · ${document.getElementById('wsFilter').selectedOptions[0]?.text ?? ''}` : '';
+        document.getElementById('heroSub').textContent =
+            `${(props||[]).length} propriedade(s) • ${activeHarvests.length} safra(s) ativa(s) • ${alertTotal} alerta(s) pendente(s)${wsName}`;
+
+        // Stats
+        document.getElementById('statProps').textContent    = (props||[]).length;
+        document.getElementById('statHarvests').textContent = activeHarvests.length;
+        document.getElementById('statLowStock').textContent = lowStock.length;
+        document.getElementById('statAlerts').textContent   = alertTotal;
+        document.getElementById('statAlertsSub').textContent = criticalCount > 0 ? `${criticalCount} crítico(s)` : '';
+        if (lowStock.length > 0) document.getElementById('cardLowStock').classList.add('stat-card--warn');
+        if (alertTotal > 0)      document.getElementById('cardAlerts').classList.add('stat-card--warn');
+
+        // Harvest status chart
+        const statusCount = {};
+        (harvests||[]).forEach(h => { statusCount[h.status] = (statusCount[h.status]||0) + 1; });
+        const stKeys = Object.keys(statusCount);
+        if (stKeys.length > 0) {
+            document.getElementById('harvestEmpty').style.display = 'none';
+            harvestChartInst = new Chart(hCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: stKeys.map(k => stLabels[k] ?? k),
+                    datasets: [{ data: stKeys.map(k => statusCount[k]), backgroundColor: stColors, borderWidth: 0, hoverOffset: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 12, boxWidth: 12 } } } }
+            });
+        } else { hCanvas.style.display = 'none'; }
+
+        // Stock chart
+        const topStock = (stockItems||[]).slice(0, 8);
+        if (topStock.length > 0) {
+            document.getElementById('stockEmpty').style.display = 'none';
+            stockChartInst = new Chart(sCanvas, {
+                type: 'bar',
+                data: {
+                    labels: topStock.map(s => s.inputProduct?.name?.substring(0,12) ?? '-'),
+                    datasets: [{
+                        label: 'Qtd.',
+                        data: topStock.map(s => s.quantityInStock),
+                        backgroundColor: topStock.map(s => s.isLow ? 'rgba(245,158,11,0.7)' : 'rgba(0,229,160,0.7)'),
+                        borderRadius: 4, borderSkipped: false
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        } else { sCanvas.style.display = 'none'; }
+
+        // Alerts panel
+        if (alerts.length > 0) {
+            document.getElementById('alertsPanel').style.display = 'block';
+            document.getElementById('alertsBody').innerHTML = alerts.map(a => `<tr>
+                <td><span class="badge ${sevClass[a.severity]??''}">${sevLabels[a.severity]??a.severity}</span></td>
+                <td class="td--name">${a.title}</td>
+                <td class="text-muted" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.message}</td>
+                <td class="mono text-muted">${fmtDate(a.createdAt)}</td>
+            </tr>`).join('');
+        }
+
+        // Harvests table
+        document.getElementById('harvestsLoading').style.display = 'none';
+        const active = (harvests||[]).filter(h => ['InProgress','Planned'].includes(h.status)).slice(0,8);
+        if (active.length === 0) {
+            document.getElementById('harvestsEmpty').style.display = 'flex';
+        } else {
+            document.getElementById('harvestsBody').innerHTML = active.map(h => `<tr>
+                <td class="td--name">${h.name}</td>
+                <td>${h.culture?.commonName ?? '-'}</td>
+                <td class="text-muted">${h.field?.name ?? '-'}</td>
+                <td class="mono">${fmtDate(h.plantingDate)}</td>
+                <td class="mono">${fmtDate(h.expectedHarvestDate)}</td>
+                <td><span class="badge ${h.status === 'InProgress' ? 'status--inprogress' : 'status--planned'}">${stLabels[h.status]??h.status}</span></td>
+            </tr>`).join('');
+            document.getElementById('harvestsTable').style.display = 'table';
+        }
+
+    } catch(err) {
+        document.getElementById('heroSub').textContent = 'Erro ao carregar dados.';
+        console.error(err);
+    }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+initWsFilter();
+loadDashboard(null);
+</script>
+}

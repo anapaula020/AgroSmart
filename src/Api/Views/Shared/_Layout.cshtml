@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} - " : "")Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+</head>
+<body>
+<div class="shell">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar__brand">
+            <span class="material-symbols-outlined">eco</span>
+            <span class="brand-name">AgroSmart</span>
+        </div>
+        <nav class="sidebar__nav">
+            @{
+                var ctrl = ViewContext.RouteData.Values["controller"]?.ToString();
+            }
+            <span class="nav-section">Principal</span>
+            <a class="nav-link @(ctrl == "Dashboard" ? "active" : "")" href="/">
+                <span class="material-symbols-outlined">dashboard</span> Dashboard
+            </a>
+            <span class="nav-section">Gestão</span>
+            <a class="nav-link @(ctrl == "AdminPages" ? "active" : "")" href="/admin/properties">
+                <span class="material-symbols-outlined">landscape</span> Propriedades
+            </a>
+            <a class="nav-link @(ctrl == "AdminPages" ? "active" : "")" href="/admin/harvests">
+                <span class="material-symbols-outlined">grass</span> Safras
+            </a>
+            <a class="nav-link @(ctrl == "AdminPages" ? "active" : "")" href="/admin/stock">
+                <span class="material-symbols-outlined">inventory_2</span> Estoque
+            </a>
+            <a class="nav-link @(ctrl == "AdminPages" ? "active" : "")" href="/admin/weather">
+                <span class="material-symbols-outlined">cloud</span> Clima
+            </a>
+            <a class="nav-link @(ctrl == "AdminPages" ? "active" : "")" href="/admin/alerts">
+                <span class="material-symbols-outlined">notifications</span> Alertas
+                <span class="nav-badge" id="alertBadge" style="display:none"></span>
+            </a>
+            <a class="nav-link @(ctrl == "AdminPages" && ViewData["Title"]?.ToString() == "Workspaces" ? "active" : "")" href="/admin/workspaces">
+                <span class="material-symbols-outlined">group_work</span> Workspaces
+            </a>
+            @if (User.IsInRole("Admin")) {
+            <a class="nav-link @(ctrl == "AdminPages" && ViewData["Title"]?.ToString() == "Usuários" ? "active" : "")" href="/admin/users">
+                <span class="material-symbols-outlined">manage_accounts</span> Usuários
+            </a>
+            }
+            <div class="nav-divider"></div>
+            <span class="nav-section">Sistema</span>
+            <a class="nav-link" href="/swagger" target="_blank">
+                <span class="material-symbols-outlined">api</span> API Docs
+            </a>
+            <a class="nav-link" href="/health">
+                <span class="material-symbols-outlined">monitor_heart</span> Health
+            </a>
+        </nav>
+        <div class="sidebar__footer">
+            <a class="nav-link @(ctrl == "UserAccount" ? "active" : "")" href="/account/profile">
+                <span class="material-symbols-outlined">manage_accounts</span> Minha Conta
+            </a>
+            <span class="env-badge">@Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")</span>
+            <form method="post" action="/logout" style="margin-top:8px" id="logoutForm">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="nav-link" style="width:100%;background:none;border:none;cursor:pointer;text-align:left"
+                        onclick="localStorage.removeItem('jwt')">
+                    <span class="material-symbols-outlined">logout</span> Sair
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="topbar__toggle" id="sidebarToggle">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+            <h1 class="topbar__title">@ViewData["Title"]</h1>
+            <div class="topbar__right" id="topbarActions"></div>
+        </header>
+        <main class="content">
+            @RenderBody()
+        </main>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="~/js/admin.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,18 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+publish/
+logs/
+
+# EF migrations (optional - remove if you want to commit migrations)
+# src/Api/Data/Migrations/
+
+# Docker
+.env
+
+# OS
+.DS_Store
+Thumbs.db

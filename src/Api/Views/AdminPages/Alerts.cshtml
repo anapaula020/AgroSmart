@@ -1,0 +1,237 @@
+@{
+    ViewData["Title"] = "Alertas";
+}
+
+<div class="page-header">
+    <div class="filter-bar">
+        <select id="wsFilter" class="input" style="min-width:180px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+            <option value="">Todos os workspaces</option>
+        </select>
+        <select class="input" id="filterSeverity" onchange="loadAlerts()">
+            <option value="">Todas as severidades</option>
+            <option value="Low">Baixa</option>
+            <option value="Medium">Média</option>
+            <option value="High">Alta</option>
+            <option value="Critical">Crítica</option>
+        </select>
+        <select class="input" id="filterType" onchange="loadAlerts()">
+            <option value="">Todos os tipos</option>
+            <option value="StockLow">Estoque Baixo</option>
+            <option value="HarvestStatus">Safra</option>
+            <option value="WeatherWarning">Clima</option>
+            <option value="System">Sistema</option>
+            <option value="Custom">Personalizado</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:13px">
+            <input type="checkbox" id="filterUnread" onchange="loadAlerts()" checked />
+            Apenas não lidos
+        </label>
+    </div>
+    <div class="page-header__actions">
+        <button class="btn btn--ghost" onclick="markAllRead()">
+            <span class="material-symbols-outlined">done_all</span> Marcar todos lidos
+        </button>
+        <button class="btn btn--ghost" id="btnCheckStock" style="display:none" onclick="checkStock()">
+            <span class="material-symbols-outlined">inventory_2</span> Verificar estoque
+        </button>
+        <button class="btn btn--primary" data-requires="write" onclick="openModal('modalNewAlert')">
+            <span class="material-symbols-outlined">add_alert</span> Novo Alerta
+        </button>
+    </div>
+</div>
+
+<div id="listWrap">
+    <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
+</div>
+
+<!-- Pagination -->
+<div id="paginationWrap" class="pagination" style="margin-top:var(--space-5)"></div>
+
+<!-- Modal novo alerta -->
+<div class="modal" id="modalNewAlert">
+    <div class="modal__box">
+        <h2 class="modal__title">Novo Alerta</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="label">Tipo *</label>
+                <select class="input" id="alType">
+                    <option value="Custom">Personalizado</option>
+                    <option value="StockLow">Estoque Baixo</option>
+                    <option value="HarvestStatus">Safra</option>
+                    <option value="WeatherWarning">Clima</option>
+                    <option value="System">Sistema</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="label">Severidade *</label>
+                <select class="input" id="alSev">
+                    <option value="Low">Baixa</option>
+                    <option value="Medium">Média</option>
+                    <option value="High">Alta</option>
+                    <option value="Critical">Crítica</option>
+                </select>
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Título *</label>
+                <input class="input" id="alTitle" placeholder="Resumo do alerta" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Mensagem *</label>
+                <textarea class="input" id="alMessage" rows="3" placeholder="Descrição detalhada..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="label">Propriedade (opcional)</label>
+                <select class="input" id="alProp">
+                    <option value="">Nenhuma</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="label">Expira em (opcional)</label>
+                <input class="input" id="alExpires" type="datetime-local" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createAlert()">Criar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewAlert')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const sevLabels = { Low:'Baixa', Medium:'Média', High:'Alta', Critical:'Crítica' };
+const sevClass  = { Low:'sev--low', Medium:'sev--medium', High:'sev--high', Critical:'sev--critical' };
+const typeLabels = { StockLow:'Estoque', HarvestStatus:'Safra', WeatherWarning:'Clima', System:'Sistema', Custom:'Custom' };
+
+let currentPage = 1;
+let currentWsId = null;
+
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    refreshAlertProps(currentWsId);
+    loadAlerts(1);
+}
+
+async function refreshAlertProps(wsId) {
+    const props = await Auth.json('/api/v1/rural-properties' + (wsId ? `?workspaceId=${wsId}` : '')) ?? [];
+    const sel = document.getElementById('alProp');
+    sel.innerHTML = '<option value="">Nenhuma</option>';
+    props.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.name}</option>`);
+}
+
+async function init() {
+    await initWsFilter();
+    if (Auth.isManager()) document.getElementById('btnCheckStock').style.display = '';
+    await refreshAlertProps(null);
+    await loadAlerts();
+}
+
+async function loadAlerts(page = 1) {
+    currentPage = page;
+    const sev     = document.getElementById('filterSeverity').value;
+    const type    = document.getElementById('filterType').value;
+    const unread  = document.getElementById('filterUnread').checked;
+
+    let url = `/api/v1/alerts?page=${page}&pageSize=15`;
+    if (sev)         url += `&severity=${sev}`;
+    if (type)        url += `&type=${type}`;
+    if (unread)      url += `&unreadOnly=true`;
+    if (currentWsId) url += `&workspaceId=${currentWsId}`;
+
+    const data = await Auth.json(url);
+    const wrap = document.getElementById('listWrap');
+
+    if (!data || !data.items?.length) {
+        wrap.innerHTML = `<div class="panel"><div class="empty">
+            <span class="material-symbols-outlined">notifications_off</span>
+            <p>Nenhum alerta encontrado</p></div></div>`;
+        document.getElementById('paginationWrap').innerHTML = '';
+        return;
+    }
+
+    wrap.innerHTML = `<div class="panel"><div class="panel__body panel__body--flush">
+        <table class="table"><thead><tr>
+            <th>Severidade</th><th>Tipo</th><th>Título</th><th>Mensagem</th><th>Data</th><th class="th--right">Ações</th>
+        </tr></thead><tbody>${data.items.map(a => `
+        <tr style="${a.isRead ? 'opacity:.6' : ''}">
+            <td><span class="badge ${sevClass[a.severity] ?? ''}">${sevLabels[a.severity] ?? a.severity}</span></td>
+            <td class="text-muted">${typeLabels[a.type] ?? a.type}</td>
+            <td class="td--name">${a.title}</td>
+            <td class="text-muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.message}</td>
+            <td class="mono text-muted">${fmtDate(a.createdAt)}</td>
+            <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
+                ${!a.isRead ? `<button class="btn btn--sm btn--ghost" onclick="markRead('${a.id}')">Lido</button>` : ''}
+                ${Auth.isManager() ? `<button class="btn btn--sm btn--danger" onclick="deleteAlert('${a.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}
+            </td>
+        </tr>`).join('')}</tbody></table></div></div>`;
+
+    // Pagination
+    const totalPages = Math.ceil(data.total / 15);
+    const pgWrap = document.getElementById('paginationWrap');
+    if (totalPages > 1) {
+        pgWrap.innerHTML = Array.from({length: totalPages}, (_, i) => i + 1)
+            .map(p => `<button class="pagination__item ${p === currentPage ? 'pagination__item--active' : ''}" onclick="loadAlerts(${p})">${p}</button>`)
+            .join('');
+    } else {
+        pgWrap.innerHTML = '';
+    }
+}
+
+async function markRead(id) {
+    await Auth.fetch(`/api/v1/alerts/${id}/read`, { method: 'PATCH' });
+    await loadAlerts(currentPage);
+}
+
+async function markAllRead() {
+    const res = await Auth.fetch('/api/v1/alerts/read-all', { method: 'PATCH' });
+    if (res?.ok) {
+        const d = await res.json();
+        toast(`${d.markedCount} alerta(s) marcados como lidos`);
+        await loadAlerts(1);
+    }
+}
+
+async function deleteAlert(id) {
+    if (!confirm('Remover este alerta?')) return;
+    const res = await Auth.fetch(`/api/v1/alerts/${id}`, { method: 'DELETE' });
+    if (res?.ok) { toast('Alerta removido'); await loadAlerts(Math.max(1, currentPage - 1)); }
+}
+
+async function checkStock() {
+    const res = await Auth.fetch('/api/v1/alerts/check-stock', { method: 'POST' });
+    if (res?.ok) {
+        const d = await res.json();
+        toast(`Verificação concluída: ${d.created} novos alertas criados`);
+        await loadAlerts(1);
+    } else toast('Erro na verificação', 'error');
+}
+
+async function createAlert() {
+    const expires = document.getElementById('alExpires').value;
+    const body = {
+        type:       document.getElementById('alType').value,
+        severity:   document.getElementById('alSev').value,
+        title:      document.getElementById('alTitle').value,
+        message:    document.getElementById('alMessage').value,
+        propertyId: document.getElementById('alProp').value || null,
+        expiresAt:  expires ? new Date(expires).toISOString() : null,
+    };
+    const res = await Auth.fetch('/api/v1/alerts', { method: 'POST', body: JSON.stringify(body) });
+    if (res?.ok) { toast('Alerta criado!'); closeModal('modalNewAlert'); await loadAlerts(1); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+init();
+</script>
+}

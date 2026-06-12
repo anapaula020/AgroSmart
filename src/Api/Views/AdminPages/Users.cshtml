@@ -1,0 +1,199 @@
+@{
+    ViewData["Title"] = "Usuários";
+}
+
+<div class="page-header">
+    <div></div>
+    <div class="page-header__actions">
+        <button class="btn btn--primary" onclick="openModal('modalNewUser')">
+            <span class="material-symbols-outlined">person_add</span> Novo Usuário
+        </button>
+    </div>
+</div>
+
+<div id="listWrap">
+    <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
+</div>
+
+<!-- Modal: novo usuário -->
+<div class="modal" id="modalNewUser">
+    <div class="modal__box">
+        <h2 class="modal__title">Novo Usuário</h2>
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Email *</label>
+                <input class="input" id="nuEmail" type="email" placeholder="usuario@exemplo.com" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Senha *</label>
+                <input class="input" id="nuPassword" type="password" placeholder="Mínimo 6 caracteres com 1 número" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Role</label>
+                <select class="input" id="nuRole">
+                    <option value="Operador">Operador - cria e atualiza dados</option>
+                    <option value="Gestor">Gestor - acesso completo ao negócio</option>
+                    <option value="Consulta">Consulta - somente leitura</option>
+                    <option value="Admin">Admin - acesso total ao sistema</option>
+                </select>
+            </div>
+            <div class="form-group form-group--full">
+                <div id="nuHint" class="field-hint"></div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createUser()">Criar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewUser')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: alterar role -->
+<div class="modal" id="modalChangeRole">
+    <div class="modal__box">
+        <h2 class="modal__title">Alterar Role</h2>
+        <input type="hidden" id="crUserId" />
+        <div class="form-group">
+            <label class="label">Email</label>
+            <p id="crUserEmail" class="text-muted" style="margin:4px 0 var(--space-4)"></p>
+        </div>
+        <div class="form-group">
+            <label class="label">Nova Role</label>
+            <select class="input" id="crRole">
+                <option value="Consulta">Consulta - somente leitura</option>
+                <option value="Operador">Operador - cria e atualiza dados</option>
+                <option value="Gestor">Gestor - acesso completo ao negócio</option>
+                <option value="Admin">Admin - acesso total ao sistema</option>
+            </select>
+        </div>
+        <div id="crHint" class="field-hint"></div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="saveRole()">Salvar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalChangeRole')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const roleLabel = { Admin: 'Admin', Gestor: 'Gestor', Operador: 'Operador', Consulta: 'Consulta' };
+const roleBadge = { Admin: 'badge--warn', Gestor: 'badge--info', Operador: 'badge--ok', Consulta: 'badge--muted' };
+
+async function loadUsers() {
+    const users = await Auth.json('/api/v1/users');
+    const wrap  = document.getElementById('listWrap');
+    if (!users) {
+        wrap.innerHTML = `<div class="panel"><div class="empty"><p>Erro ao carregar usuários.</p></div></div>`;
+        return;
+    }
+    if (!users.length) {
+        wrap.innerHTML = `<div class="panel"><div class="empty">
+            <span class="material-symbols-outlined">group_off</span>
+            <p>Nenhum usuário encontrado</p></div></div>`;
+        return;
+    }
+    wrap.innerHTML = `<div class="panel"><div class="panel__body panel__body--flush">
+        <table class="table">
+            <thead><tr>
+                <th>Email</th><th>Role</th><th>Status</th><th class="th--right">Ações</th>
+            </tr></thead>
+            <tbody>${users.map(u => `<tr>
+                <td class="td--name">${esc(u.email ?? '-')}${u.isCurrent ? ' <span class="badge badge--muted" style="font-size:10px">você</span>' : ''}</td>
+                <td><span class="badge ${roleBadge[u.role] ?? 'badge--muted'}">${roleLabel[u.role] ?? u.role}</span></td>
+                <td>${u.isDisabled
+                    ? '<span class="badge badge--danger">Desativado</span>'
+                    : '<span class="badge badge--ok">Ativo</span>'}</td>
+                <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
+                    ${!u.isCurrent ? `
+                    <button class="btn btn--sm btn--ghost" onclick="openChangeRole('${u.id}','${esc(u.email ?? '')}','${u.role}')">
+                        <span class="material-symbols-outlined" style="font-size:14px">swap_horiz</span> Role
+                    </button>
+                    <button class="btn btn--sm ${u.isDisabled ? 'btn--primary' : 'btn--ghost'}" onclick="${u.isDisabled ? `enableUser('${u.id}')` : `disableUser('${u.id}')`}">
+                        <span class="material-symbols-outlined" style="font-size:14px">${u.isDisabled ? 'lock_open' : 'block'}</span>
+                    </button>
+                    <button class="btn btn--sm btn--danger" onclick="deleteUser('${u.id}','${esc(u.email ?? '')}')">
+                        <span class="material-symbols-outlined" style="font-size:14px">delete</span>
+                    </button>` : ''}
+                </td>
+            </tr>`).join('')}</tbody>
+        </table></div></div>`;
+}
+
+async function createUser() {
+    const email    = document.getElementById('nuEmail').value.trim();
+    const password = document.getElementById('nuPassword').value;
+    const role     = document.getElementById('nuRole').value;
+    const hint     = document.getElementById('nuHint');
+
+    if (!email || !password) { hint.textContent = 'Email e senha são obrigatórios.'; hint.className = 'field-hint field-hint--err'; return; }
+
+    const res = await Auth.fetch('/api/v1/users', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, role })
+    });
+    const data = res ? await res.json() : null;
+    if (res?.ok) {
+        toast(`Usuário ${email} criado!`);
+        closeModal('modalNewUser');
+        document.getElementById('nuEmail').value = '';
+        document.getElementById('nuPassword').value = '';
+        loadUsers();
+    } else {
+        hint.textContent = data?.message ?? 'Erro ao criar usuário.';
+        hint.className = 'field-hint field-hint--err';
+    }
+}
+
+function openChangeRole(id, email, currentRole) {
+    document.getElementById('crUserId').value   = id;
+    document.getElementById('crUserEmail').textContent = email;
+    document.getElementById('crRole').value     = currentRole;
+    document.getElementById('crHint').textContent = '';
+    openModal('modalChangeRole');
+}
+
+async function saveRole() {
+    const id   = document.getElementById('crUserId').value;
+    const role = document.getElementById('crRole').value;
+    const hint = document.getElementById('crHint');
+
+    const res  = await Auth.fetch(`/api/v1/users/${id}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role })
+    });
+    const data = res ? await res.json() : null;
+    if (res?.ok) {
+        toast('Role alterada!');
+        closeModal('modalChangeRole');
+        loadUsers();
+    } else {
+        hint.textContent = data?.message ?? 'Erro ao alterar role.';
+        hint.className = 'field-hint field-hint--err';
+    }
+}
+
+async function disableUser(id) {
+    if (!confirm('Desativar este usuário? Ele não conseguirá mais fazer login.')) return;
+    const res = await Auth.fetch(`/api/v1/users/${id}/disable`, { method: 'POST', body: '{}' });
+    if (res?.ok) { toast('Usuário desativado.'); loadUsers(); }
+    else toast('Erro ao desativar.', 'error');
+}
+
+async function enableUser(id) {
+    const res = await Auth.fetch(`/api/v1/users/${id}/enable`, { method: 'POST', body: '{}' });
+    if (res?.ok) { toast('Usuário reativado.'); loadUsers(); }
+    else toast('Erro ao reativar.', 'error');
+}
+
+async function deleteUser(id, email) {
+    if (!confirm(`Excluir permanentemente o usuário ${email}?`)) return;
+    const res = await Auth.fetch(`/api/v1/users/${id}`, { method: 'DELETE' });
+    if (res?.ok || res?.status === 204) { toast('Usuário excluído.'); loadUsers(); }
+    else toast('Erro ao excluir.', 'error');
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+loadUsers();
+</script>
+}

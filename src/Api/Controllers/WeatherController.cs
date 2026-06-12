@@ -1,0 +1,266 @@
+using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using Api.Data;
+using Api.Models;
+using Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Api.Controllers;
+
+public record CreateStationRequest(
+    [Required] Guid PropertyId,
+    [Required, StringLength(150, MinimumLength = 2)] string Name,
+    string? Model,
+    [Required] decimal Latitude,
+    [Required] decimal Longitude
+);
+
+[ApiController]
+[Route("api/v1/weather")]
+[Produces("application/json")]
+[Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
+public class WeatherController(AppDbContext db, OpenWeatherService weather) : ControllerBase
+{
+    private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+    private async Task<bool> CanAccessProperty(Guid propertyId)
+    {
+        var p = await db.RuralProperties.FindAsync(propertyId);
+        if (p is null) return false;
+        if (User.IsManager() || p.OwnerId == UserId) return true;
+        if (p.WorkspaceId is null) return false;
+        return await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == p.WorkspaceId && m.UserId == UserId);
+    }
+
+    // ── Stations ──────────────────────────────────────────────────────────────
+    [HttpGet("stations")]
+    public async Task<IActionResult> GetStations([FromQuery] Guid? propertyId = null, [FromQuery] Guid? workspaceId = null)
+    {
+        var query = db.WeatherStations.Include(s => s.Property).AsQueryable();
+
+        if (workspaceId.HasValue)
+        {
+            if (!User.IsManager() && !await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == UserId))
+                return Forbid();
+            query = query.Where(s => s.Property!.WorkspaceId == workspaceId);
+        }
+        else if (!User.IsManager())
+        {
+            var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
+            query = query.Where(s =>
+                s.Property!.OwnerId == UserId ||
+                (s.Property!.WorkspaceId != null && wsIds.Contains(s.Property!.WorkspaceId.Value)));
+        }
+        if (propertyId.HasValue) query = query.Where(s => s.PropertyId == propertyId);
+
+        return Ok(await query.OrderBy(s => s.Name).Select(s => new {
+            s.Id, s.Name, s.Model, s.Latitude, s.Longitude, s.IsActive,
+            Property     = new { s.Property!.Id, s.Property.Name },
+            ReadingCount = db.WeatherReadings.Count(r => r.StationId == s.Id)
+        }).ToListAsync());
+    }
+
+    [HttpGet("stations/{id:guid}")]
+    public async Task<IActionResult> GetStation(Guid id)
+    {
+        var s = await db.WeatherStations.Include(x => x.Property)
+            .FirstOrDefaultAsync(x => x.Id == id);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+
+        var latest = await db.WeatherReadings
+            .Where(r => r.StationId == id)
+            .OrderByDescending(r => r.RecordedAt)
+            .FirstOrDefaultAsync();
+
+        return Ok(new {
+            s.Id, s.Name, s.Model, s.Latitude, s.Longitude, s.IsActive, s.CreatedAt,
+            Property = new { s.Property!.Id, s.Property.Name },
+            LatestReading = latest is null ? null : new {
+                latest.Temperature, latest.Humidity, latest.Rainfall,
+                latest.WindSpeedKmh, latest.WindDirection, latest.RecordedAt
+            },
+            OpenWeatherConfigured = weather.IsConfigured
+        });
+    }
+
+    [HttpPost("stations")]
+    public async Task<IActionResult> CreateStation([FromBody] CreateStationRequest req)
+    {
+        if (!User.IsManager()) return Forbid();
+        if (!await CanAccessProperty(req.PropertyId)) return Forbid();
+
+        var station = new WeatherStation
+        {
+            PropertyId = req.PropertyId,
+            Name       = req.Name,
+            Model      = req.Model,
+            Latitude   = req.Latitude,
+            Longitude  = req.Longitude
+        };
+        db.WeatherStations.Add(station);
+        await db.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetStation), new { id = station.Id }, new { station.Id, station.Name });
+    }
+
+    [HttpDelete("stations/{id:guid}")]
+    public async Task<IActionResult> DeleteStation(Guid id)
+    {
+        if (!User.IsManager()) return Forbid();
+        var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == id);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+        db.WeatherStations.Remove(s);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // ── Readings ──────────────────────────────────────────────────────────────
+    [HttpGet("stations/{stationId:guid}/readings")]
+    public async Task<IActionResult> GetReadings(
+        Guid stationId,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to   = null,
+        [FromQuery] int limit      = 100)
+    {
+        var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+
+        var query = db.WeatherReadings.Where(r => r.StationId == stationId);
+        if (from.HasValue) query = query.Where(r => r.RecordedAt >= from);
+        if (to.HasValue)   query = query.Where(r => r.RecordedAt <= to);
+
+        var readings = await query.OrderByDescending(r => r.RecordedAt).Take(limit)
+            .Select(r => new {
+                r.Id, r.RecordedAt, r.Temperature, r.Humidity, r.Rainfall,
+                r.WindSpeedKmh, r.WindDirection, r.PressureHpa, r.SolarRadiation
+            }).ToListAsync();
+
+        return Ok(readings);
+    }
+
+    // ── Fetch current from OpenWeather and save ───────────────────────────────
+    [HttpPost("stations/{stationId:guid}/readings/fetch")]
+    public async Task<IActionResult> FetchCurrent(Guid stationId)
+    {
+        if (!User.CanWrite()) return Forbid();
+        var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+
+        if (!weather.IsConfigured)
+            return BadRequest(new ErrorResponse("OpenWeather API key not configured. Set OPENWEATHER_API_KEY in .env"));
+
+        var lastReadingAt = await db.WeatherReadings
+            .Where(r => r.StationId == stationId)
+            .OrderByDescending(r => r.RecordedAt)
+            .Select(r => (DateTime?)r.RecordedAt)
+            .FirstOrDefaultAsync();
+        if (lastReadingAt.HasValue && (DateTime.UtcNow - lastReadingAt.Value).TotalMinutes < 10)
+        {
+            var ago = (int)(DateTime.UtcNow - lastReadingAt.Value).TotalMinutes;
+            return StatusCode(429, new ErrorResponse($"Leitura atualizada há {ago}min. Aguarde 10min entre buscas."));
+        }
+
+        var reading = await weather.FetchCurrentAsync(stationId, s.Latitude, s.Longitude);
+        if (reading is null)
+            return StatusCode(503, new ErrorResponse("Falha ao buscar dados da OpenWeather. Verifique os logs e a validade da API key."));
+
+        db.WeatherReadings.Add(reading);
+        await db.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetReadings), new { stationId }, new {
+            reading.Id, reading.Temperature, reading.Humidity,
+            reading.Rainfall, reading.WindSpeedKmh, reading.RecordedAt
+        });
+    }
+
+    // ── Manual reading ────────────────────────────────────────────────────────
+    [HttpPost("stations/{stationId:guid}/readings")]
+    public async Task<IActionResult> AddReading(Guid stationId, [FromBody] AddReadingRequest req)
+    {
+        if (!User.CanWrite()) return Forbid();
+        var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+
+        var reading = new WeatherReading
+        {
+            StationId      = stationId,
+            RecordedAt     = req.RecordedAt ?? DateTime.UtcNow,
+            Temperature    = req.Temperature,
+            Humidity       = req.Humidity,
+            Rainfall       = req.Rainfall,
+            WindSpeedKmh   = req.WindSpeedKmh,
+            WindDirection  = req.WindDirection,
+            PressureHpa    = req.PressureHpa,
+            SolarRadiation = req.SolarRadiation
+        };
+        db.WeatherReadings.Add(reading);
+        await db.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetReadings), new { stationId }, new { reading.Id, reading.RecordedAt });
+    }
+
+    // ── Forecast ──────────────────────────────────────────────────────────────
+    [HttpGet("stations/{stationId:guid}/forecast")]
+    public async Task<IActionResult> GetForecast(Guid stationId)
+    {
+        var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+
+        var forecasts = await db.WeatherForecasts
+            .Where(f => f.StationId == stationId && f.ForecastDate >= DateTime.UtcNow.Date)
+            .OrderBy(f => f.ForecastDate)
+            .Select(f => new {
+                f.Id, f.ForecastDate, f.TempMin, f.TempMax,
+                f.RainfallMm, f.HumidityPct, f.Condition, f.Source
+            }).ToListAsync();
+
+        return Ok(forecasts);
+    }
+
+    [HttpPost("stations/{stationId:guid}/forecast/fetch")]
+    public async Task<IActionResult> FetchForecast(Guid stationId)
+    {
+        if (!User.CanWrite()) return Forbid();
+        var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
+        if (s is null) return NotFound();
+        if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
+
+        if (!weather.IsConfigured)
+            return BadRequest(new ErrorResponse("OpenWeather API key not configured. Set OPENWEATHER_API_KEY in .env"));
+
+        var lastForecastAt = await db.WeatherForecasts
+            .Where(f => f.StationId == stationId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => (DateTime?)f.CreatedAt)
+            .FirstOrDefaultAsync();
+        if (lastForecastAt.HasValue && (DateTime.UtcNow - lastForecastAt.Value).TotalHours < 1)
+            return StatusCode(429, new ErrorResponse("Previsão atualizada recentemente. Aguarde 1h entre buscas."));
+
+        var forecasts = await weather.FetchForecastAsync(stationId, s.Latitude, s.Longitude);
+        if (forecasts.Count == 0)
+            return StatusCode(503, new ErrorResponse("Falha ao buscar previsão da OpenWeather. Verifique os logs e a validade da API key."));
+
+        // Remove previsões futuras antigas e insere as novas
+        var old = db.WeatherForecasts.Where(f => f.StationId == stationId && f.ForecastDate >= DateTime.UtcNow.Date);
+        db.WeatherForecasts.RemoveRange(old);
+        db.WeatherForecasts.AddRange(forecasts);
+        await db.SaveChangesAsync();
+
+        return Ok(new { Saved = forecasts.Count, Days = forecasts.Select(f => f.ForecastDate.Date) });
+    }
+}
+
+public record AddReadingRequest(
+    decimal? Temperature, decimal? Humidity, decimal? Rainfall,
+    decimal? WindSpeedKmh, string? WindDirection,
+    decimal? PressureHpa, decimal? SolarRadiation,
+    DateTime? RecordedAt
+);

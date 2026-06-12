@@ -1,0 +1,328 @@
+@{
+    ViewData["Title"] = "Propriedades";
+}
+
+<div class="page-header">
+    <div></div>
+    <div class="page-header__actions">
+        <button class="btn btn--primary" data-requires="write" onclick="openModal('modalNewProperty')">
+            <span class="material-symbols-outlined">add</span> Nova Propriedade
+        </button>
+    </div>
+</div>
+
+<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;margin-bottom:var(--space-2)">
+    <span class="material-symbols-outlined" style="color:var(--text-muted);font-size:18px">filter_list</span>
+    <span style="font-size:13px;color:var(--text-muted);white-space:nowrap">Workspace:</span>
+    <select id="wsFilter" class="input" style="width:auto;min-width:200px;max-width:280px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+        <option value="">Todos os workspaces</option>
+    </select>
+</div>
+
+<div id="listWrap">
+    <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
+</div>
+
+<!-- Modal nova propriedade -->
+<div class="modal" id="modalNewProperty">
+    <div class="modal__box">
+        <h2 class="modal__title">Nova Propriedade Rural</h2>
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Nome *</label>
+                <input class="input" id="propName" placeholder="Ex: Fazenda Santa Cruz" />
+            </div>
+            <div class="form-group">
+                <label class="label">Número CAR</label>
+                <input class="input" id="propCar" placeholder="BR-..." />
+            </div>
+            <div class="form-group">
+                <label class="label">Área Total (ha) *</label>
+                <input class="input" id="propArea" type="number" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+                <label class="label">Área de Vegetação (ha)</label>
+                <input class="input" id="propVeg" type="number" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+                <label class="label">CEP *</label>
+                <input class="input" id="addrCep" placeholder="00000-000" />
+            </div>
+            <div class="form-group">
+                <label class="label">UF *</label>
+                <select class="input" id="addrUf"><option value="">Carregando...</option></select>
+            </div>
+            <div class="form-group">
+                <label class="label">Município *</label>
+                <select class="input" id="addrMun"><option value="">Selecione a UF</option></select>
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Logradouro *</label>
+                <input class="input" id="addrLog" placeholder="Estrada..." />
+            </div>
+            <div class="form-group">
+                <label class="label">Bairro *</label>
+                <input class="input" id="addrBairro" placeholder="Zona Rural" />
+            </div>
+            <div class="form-group">
+                <label class="label">Complemento</label>
+                <input class="input" id="addrComp" placeholder="Opcional" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createProperty()">Criar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewProperty')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal detalhe / edição de propriedade -->
+<div class="modal" id="modalDetail">
+    <div class="modal__box" style="max-width:760px;width:95%">
+        <h2 class="modal__title" id="dtTitle">Propriedade</h2>
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Nome *</label>
+                <input class="input" id="dtName" />
+            </div>
+            <div class="form-group">
+                <label class="label">Número CAR</label>
+                <input class="input" id="dtCar" />
+            </div>
+            <div class="form-group">
+                <label class="label">Área Total (ha)</label>
+                <input class="input" id="dtArea" type="number" step="0.01" />
+            </div>
+            <div class="form-group">
+                <label class="label">Área Vegetação (ha)</label>
+                <input class="input" id="dtVeg" type="number" step="0.01" />
+            </div>
+        </div>
+        <div class="form-actions" style="margin-bottom:0">
+            <button class="btn btn--primary" data-requires="write" onclick="saveProperty()">Salvar</button>
+            <button class="btn btn--danger" data-requires="manage" onclick="deleteProperty()">Excluir</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalDetail')">Fechar</button>
+        </div>
+
+        <hr style="margin:var(--space-5) 0;border-color:var(--border)">
+        <h3 style="margin-bottom:var(--space-3);font-size:15px">Talhões</h3>
+        <div id="dtFields"></div>
+
+        <div class="form-grid" style="margin-top:var(--space-3)">
+            <div class="form-group">
+                <label class="label">Nome do Talhão *</label>
+                <input class="input" id="fldName" placeholder="Ex: Talhão Norte" />
+            </div>
+            <div class="form-group">
+                <label class="label">Área (ha)</label>
+                <input class="input" id="fldArea" type="number" step="0.01" value="0" />
+            </div>
+            <div class="form-group">
+                <label class="label">Tipo de Solo *</label>
+                <select class="input" id="fldSoil"><option value="">Carregando...</option></select>
+            </div>
+            <div class="form-group">
+                <label class="label">Irrigação *</label>
+                <select class="input" id="fldIrrig"><option value="">Carregando...</option></select>
+            </div>
+        </div>
+        <button class="btn btn--ghost" onclick="addField()">
+            <span class="material-symbols-outlined">add</span> Adicionar Talhão
+        </button>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let currentPropertyId = null;
+let currentWsId = null;
+
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    loadProperties();
+}
+
+function qs(wsId) { return wsId ? `?workspaceId=${wsId}` : ''; }
+
+(async () => {
+    // Load UFs
+    const ufs = await Auth.json('/api/v1/ibge/ufs') ?? [];
+    const ufSel = document.getElementById('addrUf');
+    ufSel.innerHTML = '<option value="">Selecione...</option>' +
+        ufs.map(u => `<option value="${u.sigla}">${u.sigla} - ${u.nome}</option>`).join('');
+
+    ufSel.addEventListener('change', async () => {
+        const sigla = ufSel.value;
+        const munSel = document.getElementById('addrMun');
+        if (!sigla) { munSel.innerHTML = '<option value="">Selecione a UF</option>'; return; }
+        munSel.innerHTML = '<option value="">Carregando...</option>';
+        const muns = await Auth.json(`/api/v1/ibge/ufs/${sigla}/municipios`) ?? [];
+        munSel.innerHTML = '<option value="">Selecione...</option>' +
+            muns.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
+    });
+
+    // Load soil types and irrigation types for field form
+    const [soils, irrigs] = await Promise.all([
+        Auth.json('/api/v1/soiltypes') ?? [],
+        Auth.json('/api/v1/irrigationtypes') ?? []
+    ]);
+    document.getElementById('fldSoil').innerHTML = '<option value="">Selecione...</option>' +
+        soils.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    document.getElementById('fldIrrig').innerHTML = '<option value="">Selecione...</option>' +
+        irrigs.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+
+    await initWsFilter();
+    await loadProperties();
+})();
+
+async function loadProperties() {
+    const data = await Auth.json('/api/v1/rural-properties' + qs(currentWsId));
+    const wrap = document.getElementById('listWrap');
+    if (!data || data.length === 0) {
+        wrap.innerHTML = `<div class="panel"><div class="empty">
+            <span class="material-symbols-outlined">landscape</span>
+            <p>Nenhuma propriedade cadastrada</p></div></div>`;
+        return;
+    }
+    wrap.innerHTML = `<div class="panel"><div class="panel__body panel__body--flush">
+        <table class="table">
+            <thead><tr>
+                <th>Nome</th><th>Município/UF</th><th>Área (ha)</th><th>Talhões</th><th class="th--right">Ações</th>
+            </tr></thead>
+            <tbody>${data.map(p => `<tr>
+                <td class="td--name">${p.name}</td>
+                <td class="text-muted">${p.address?.municipio ?? '-'} / ${p.address?.uf ?? '-'}</td>
+                <td class="mono">${fmtNum(p.totalAreaHa)} ha</td>
+                <td class="mono">${p.fieldCount}</td>
+                <td class="td--right">
+                    <button class="btn btn--sm btn--ghost" onclick='viewProperty("${p.id}")'>Ver / Editar</button>
+                </td>
+            </tr>`).join('')}</tbody>
+        </table></div></div>`;
+}
+
+async function createProperty() {
+    const body = {
+        name: document.getElementById('propName').value,
+        carNumber: document.getElementById('propCar').value || null,
+        totalAreaHa: parseFloat(document.getElementById('propArea').value) || 0,
+        vegetationAreaHa: parseFloat(document.getElementById('propVeg').value) || 0,
+        address: {
+            cep: document.getElementById('addrCep').value,
+            logradouro: document.getElementById('addrLog').value,
+            complemento: document.getElementById('addrComp').value || null,
+            bairro: document.getElementById('addrBairro').value,
+            municipio: document.getElementById('addrMun').value,
+            uf: document.getElementById('addrUf').value,
+        }
+    };
+    const res = await Auth.fetch('/api/v1/rural-properties', { method: 'POST', body: JSON.stringify(body) });
+    if (res?.ok) {
+        toast('Propriedade criada!');
+        closeModal('modalNewProperty');
+        await loadProperties();
+    } else {
+        const err = await res?.json();
+        toast(err?.message ?? 'Erro ao criar', 'error');
+    }
+}
+
+async function viewProperty(id) {
+    currentPropertyId = id;
+    const p = await Auth.json(`/api/v1/rural-properties/${id}`);
+    if (!p) { toast('Erro ao carregar propriedade', 'error'); return; }
+
+    document.getElementById('dtTitle').textContent = p.name;
+    document.getElementById('dtName').value = p.name;
+    document.getElementById('dtCar').value = p.carNumber ?? '';
+    document.getElementById('dtArea').value = p.totalAreaHa ?? 0;
+    document.getElementById('dtVeg').value = p.vegetationAreaHa ?? 0;
+    renderFields(p.fields ?? []);
+    openModal('modalDetail');
+}
+
+function renderFields(fields) {
+    const wrap = document.getElementById('dtFields');
+    if (!fields.length) {
+        wrap.innerHTML = '<p class="text-muted" style="font-size:13px;margin-bottom:var(--space-3)">Nenhum talhão cadastrado.</p>';
+        return;
+    }
+    wrap.innerHTML = `<div class="panel__body panel__body--flush" style="margin-bottom:var(--space-3)">
+        <table class="table"><thead><tr>
+            <th>Nome</th><th>Área (ha)</th><th>Solo</th><th>Irrigação</th><th></th>
+        </tr></thead><tbody>${fields.map(f => `<tr>
+            <td>${f.name}</td>
+            <td class="mono">${fmtNum(f.areaHa)}</td>
+            <td class="text-muted">${f.soilType ?? '-'}</td>
+            <td class="text-muted">${f.irrigationType ?? '-'}</td>
+            <td class="td--right">${Auth.isManager() ? `<button class="btn btn--sm btn--danger" onclick="deleteField('${f.id}')"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>` : ''}</td>
+        </tr>`).join('')}</tbody></table></div>`;
+}
+
+async function saveProperty() {
+    const body = {
+        name: document.getElementById('dtName').value,
+        carNumber: document.getElementById('dtCar').value || null,
+        totalAreaHa: parseFloat(document.getElementById('dtArea').value) || 0,
+        vegetationAreaHa: parseFloat(document.getElementById('dtVeg').value) || 0,
+    };
+    const res = await Auth.fetch(`/api/v1/rural-properties/${currentPropertyId}`, { method: 'PUT', body: JSON.stringify(body) });
+    if (res?.ok) {
+        toast('Propriedade atualizada!');
+        document.getElementById('dtTitle').textContent = body.name;
+        await loadProperties();
+    } else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+async function deleteProperty() {
+    if (!confirm('Excluir esta propriedade? Remova os talhões antes.')) return;
+    const res = await Auth.fetch(`/api/v1/rural-properties/${currentPropertyId}`, { method: 'DELETE' });
+    if (res?.ok) {
+        toast('Propriedade excluída');
+        closeModal('modalDetail');
+        await loadProperties();
+    } else { const e = await res?.json(); toast(e?.message ?? 'Erro ao excluir. Remova os talhões primeiro.', 'error'); }
+}
+
+async function addField() {
+    const name  = document.getElementById('fldName').value.trim();
+    const area  = parseFloat(document.getElementById('fldArea').value) || 0;
+    const soil  = document.getElementById('fldSoil').value;
+    const irrig = document.getElementById('fldIrrig').value;
+    if (!name || !soil || !irrig) { toast('Preencha nome, solo e irrigação', 'error'); return; }
+
+    const body = { name, areaHa: area, soilTypeId: soil, irrigationTypeId: irrig };
+    const res = await Auth.fetch(`/api/v1/rural-properties/${currentPropertyId}/fields`, { method: 'POST', body: JSON.stringify(body) });
+    if (res?.ok) {
+        toast('Talhão criado!');
+        document.getElementById('fldName').value = '';
+        document.getElementById('fldArea').value = '0';
+        const p = await Auth.json(`/api/v1/rural-properties/${currentPropertyId}`);
+        if (p) renderFields(p.fields ?? []);
+        await loadProperties();
+    } else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+async function deleteField(fieldId) {
+    if (!confirm('Remover este talhão?')) return;
+    const res = await Auth.fetch(`/api/v1/rural-properties/${currentPropertyId}/fields/${fieldId}`, { method: 'DELETE' });
+    if (res?.ok) {
+        toast('Talhão removido');
+        const p = await Auth.json(`/api/v1/rural-properties/${currentPropertyId}`);
+        if (p) renderFields(p.fields ?? []);
+        await loadProperties();
+    } else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+</script>
+}

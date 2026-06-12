@@ -1,0 +1,181 @@
+@using Microsoft.AspNetCore.Identity
+@model IdentityUser
+@{
+    ViewData["Title"] = "Minha Conta";
+}
+
+<div class="profile-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <div class="profile-header">
+        <div class="profile-avatar">
+            <span class="material-symbols-outlined">person</span>
+        </div>
+        <div class="profile-header__info">
+            <h2 class="profile-header__email" id="displayEmail">@Model.Email</h2>
+            <span class="profile-header__meta">
+                ID: <code class="mono">@Model.Id</code>
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Two-column grid ─────────────────────────────────────────── -->
+    <div class="profile-grid">
+
+        <!-- ── Dados da conta ──────────────────────────────────────── -->
+        <div class="panel">
+            <div class="panel__header">
+                <span class="material-symbols-outlined">manage_accounts</span>
+                <h3 class="panel__title">Dados da Conta</h3>
+            </div>
+            <div class="panel__body">
+
+                <!-- E-mail -->
+                <div class="field-group" id="emailSection">
+                    <label class="field-label">E-mail</label>
+                    <div class="field-row">
+                        <input type="email" class="field-input" id="inputEmail"
+                               value="@Model.Email" placeholder="seu@email.com" />
+                        <button class="btn btn--accent" onclick="saveEmail()">
+                            <span class="material-symbols-outlined">save</span>
+                            Salvar
+                        </button>
+                    </div>
+                    <span class="field-hint" id="emailHint"></span>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Senha -->
+                <div class="field-group">
+                    <label class="field-label">Alterar Senha</label>
+                    <div class="field-stack">
+                        <input type="password" class="field-input" id="inputCurrentPass"
+                               placeholder="Senha atual" autocomplete="current-password" />
+                        <input type="password" class="field-input" id="inputNewPass"
+                               placeholder="Nova senha (mín. 6 caracteres)" autocomplete="new-password" />
+                        <input type="password" class="field-input" id="inputConfirmPass"
+                               placeholder="Confirmar nova senha" autocomplete="new-password" />
+                        <button class="btn btn--primary" onclick="changePassword()">
+                            <span class="material-symbols-outlined">lock_reset</span>
+                            Atualizar senha
+                        </button>
+                    </div>
+                    <span class="field-hint" id="passwordHint"></span>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── Segurança / Info ─────────────────────────────────────── -->
+        <div class="panel">
+            <div class="panel__header">
+                <span class="material-symbols-outlined">security</span>
+                <h3 class="panel__title">Segurança</h3>
+            </div>
+            <div class="panel__body">
+                <div class="security-row">
+                    <span class="material-symbols-outlined security-icon security-icon--ok">verified_user</span>
+                    <div>
+                        <strong>Autenticação ativa</strong>
+                        <p class="text-muted">Sua sessão está protegida via JWT.</p>
+                    </div>
+                </div>
+                <div class="security-row">
+                    <span class="material-symbols-outlined security-icon">api</span>
+                    <div>
+                        <strong>API Keys</strong>
+                        <p class="text-muted">Gerencie chaves de acesso em <a href="/admin/workspaces" style="color:var(--accent)">Workspaces</a>.</p>
+                    </div>
+                </div>
+                <div class="security-row">
+                    <span class="material-symbols-outlined security-icon">fingerprint</span>
+                    <div>
+                        <strong>Verificação de e-mail</strong>
+                        <p class="text-muted">
+                            @(Model.EmailConfirmed
+                                ? "E-mail verificado."
+                                : "E-mail ainda não verificado.")
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /profile-grid -->
+
+
+</div><!-- /profile-page -->
+
+
+@section Scripts {
+<script>
+    // Inject fresh JWT from server so API calls work even after cookie expiry
+    const _freshToken = '@ViewData["Token"]';
+    if (_freshToken) { localStorage.setItem('jwt', _freshToken); }
+
+    // ── Fetch helpers - usa Auth do admin.js (injeta Bearer token) ────────────
+    async function post(url, body) {
+        const res = await Auth.fetch(url, {
+            method: 'POST',
+            body: JSON.stringify(body)
+        });
+        if (!res) return { ok: false, error: 'Sessão expirada.' };
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json'))
+            return { ok: false, error: `Erro inesperado (HTTP ${res.status}).` };
+        return res.json();
+    }
+
+    async function get(url) {
+        const res = await Auth.fetch(url);
+        if (!res) return null;
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return null;
+        if (!res.ok) return null;
+        return res.json();
+    }
+
+    // ── Hint helpers ──────────────────────────────────────────────────────────
+    function hint(id, msg, ok) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.className = 'field-hint ' + (ok ? 'field-hint--ok' : 'field-hint--err');
+        setTimeout(() => { el.textContent = ''; el.className = 'field-hint'; }, 4000);
+    }
+
+    // ── Save email ────────────────────────────────────────────────────────────
+    async function saveEmail() {
+        const newEmail = document.getElementById('inputEmail').value.trim();
+        const res = await post('/account/update-email', { newEmail });
+        if (res.ok) {
+            document.getElementById('displayEmail').textContent = res.email;
+            hint('emailHint', 'E-mail atualizado!', true);
+        } else {
+            hint('emailHint', res.error ?? 'Erro ao atualizar e-mail.', false);
+        }
+    }
+
+    // ── Change password ───────────────────────────────────────────────────────
+    async function changePassword() {
+        const currentPassword = document.getElementById('inputCurrentPass').value;
+        const newPassword     = document.getElementById('inputNewPass').value;
+        const confirm         = document.getElementById('inputConfirmPass').value;
+
+        if (newPassword !== confirm) { hint('passwordHint', 'As senhas não coincidem.', false); return; }
+        if (newPassword.length < 6)  { hint('passwordHint', 'Mínimo de 6 caracteres.', false);  return; }
+
+        const res = await post('/account/change-password', { currentPassword, newPassword });
+        if (res.ok) {
+            ['inputCurrentPass','inputNewPass','inputConfirmPass'].forEach(id => document.getElementById(id).value = '');
+            hint('passwordHint', 'Senha alterada com sucesso!', true);
+        } else {
+            hint('passwordHint', res.error ?? 'Erro ao alterar senha.', false);
+        }
+    }
+
+    // ── Utils ─────────────────────────────────────────────────────────────────
+    function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+</script>
+}
