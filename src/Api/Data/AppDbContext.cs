@@ -8,10 +8,6 @@ namespace Api.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<IdentityUser>(options)
 {
-    // Existing
-    public DbSet<Product>  Products   => Set<Product>();
-    public DbSet<Category> Categories => Set<Category>();
-
     // Property
     public DbSet<Address>       Addresses      => Set<Address>();
     public DbSet<RuralProperty> RuralProperties => Set<RuralProperty>();
@@ -60,20 +56,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         static void GuidPk<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> e)
             where T : class
             => e.Property("Id").HasDefaultValueSql("NEWSEQUENTIALID()");
-
-        // ── Existing ──────────────────────────────────────────────────────────
-        m.Entity<Category>(e => {
-            GuidPk(e);
-            e.Property(c => c.Name).HasMaxLength(100).IsRequired();
-            e.HasIndex(c => c.Name).IsUnique();
-            e.HasData(new Category { Id = new Guid("11111111-1111-1111-1111-111111111111"), Name = "General", CreatedAt = new DateTime(2024,1,1,0,0,0,DateTimeKind.Utc) });
-        });
-        m.Entity<Product>(e => {
-            GuidPk(e);
-            e.Property(p => p.Name).HasMaxLength(200).IsRequired();
-            e.Property(p => p.Price).HasColumnType("decimal(18,2)");
-            e.HasOne(p => p.Category).WithMany(c => c.Products).HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Restrict);
-        });
 
         // ── Address ───────────────────────────────────────────────────────────
         m.Entity<Address>(e => {

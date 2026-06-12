@@ -47,11 +47,22 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 // AddIdentity define DefaultAuthenticateScheme = "Identity.Application" (cookie).
 // Sobrescrevemos aqui para que [Authorize] nas API controllers use JWT por padrão,
 // retornando 401 em vez de redirecionar para /Account/Login (que causaria 404).
+// PolicyScheme "Combined" selects the right handler per-request:
+// X-Api-Key header → ApiKey handler; otherwise → JWT Bearer.
+// This ensures [Authorize] endpoints accept both schemes without requiring
+// per-controller AuthenticationSchemes overrides.
 builder.Services.AddAuthentication(options =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = "Combined";
         options.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultScheme             = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultScheme             = "Combined";
+    })
+    .AddPolicyScheme("Combined", "JWT or ApiKey", opts =>
+    {
+        opts.ForwardDefaultSelector = ctx =>
+            ctx.Request.Headers.ContainsKey("X-Api-Key")
+                ? Api.Middleware.ApiKeyAuthHandler.SchemeName
+                : JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
