@@ -169,9 +169,9 @@
             <div class="field-group">
                 <label class="field-label">Escopo</label>
                 <select class="field-input" id="keyScope">
-                    <option value="0">ReadOnly — somente leitura</option>
-                    <option value="1">ReadWrite — leitura e escrita</option>
-                    <option value="2">Admin — acesso total</option>
+                    <option value="ReadOnly">ReadOnly — somente leitura</option>
+                    <option value="ReadWrite">ReadWrite — leitura e escrita</option>
+                    <option value="Admin">Admin — acesso total</option>
                 </select>
             </div>
             <div class="field-group">
@@ -220,6 +220,10 @@
 
 @section Scripts {
 <script>
+    // Inject fresh JWT from server so API calls work even after cookie expiry
+    const _freshToken = '@ViewData["Token"]';
+    if (_freshToken) { localStorage.setItem('jwt', _freshToken); }
+
     // ── Fetch helpers — usa Auth do admin.js (injeta Bearer token) ────────────
     async function post(url, body) {
         const res = await Auth.fetch(url, {
@@ -298,8 +302,8 @@
             return;
         }
 
-        const scopeLabel = { 0: 'ReadOnly', 1: 'ReadWrite', 2: 'Admin' };
-        const scopeClass = { 0: 'badge--muted', 1: 'badge--info', 2: 'badge--warn' };
+        const scopeLabel = { ReadOnly: 'ReadOnly', ReadWrite: 'ReadWrite', Admin: 'Admin' };
+        const scopeClass = { ReadOnly: 'badge--muted', ReadWrite: 'badge--info', Admin: 'badge--warn' };
 
         tbody.innerHTML = keys.map(k => `
         <tr data-id="${k.id}" class="${k.isActive ? '' : 'row--disabled'}">
@@ -364,7 +368,7 @@
 
         if (name.length < 2) { hintEl.textContent = 'Nome muito curto.'; hintEl.className = 'field-hint field-hint--err'; return; }
 
-        const res = await post('/account/apikeys', { name, scope: parseInt(scope), expiresAt });
+        const res = await post('/account/apikeys', { name, scope, expiresAt });
         if (res.ok) {
             document.getElementById('createModal').style.display = 'none';
             document.getElementById('revealKey').textContent = res.rawKey;

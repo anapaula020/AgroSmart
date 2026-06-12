@@ -52,7 +52,7 @@
 </div>
 
 <!-- Readings panel -->
-<div id="readingsWrap" style="display:none" class="panel" style="margin-top:var(--space-5)">
+<div id="readingsWrap" style="display:none;margin-top:var(--space-5)" class="panel">
     <div class="panel__header">
         <span class="material-symbols-outlined">thermostat</span>
         <h3 class="panel__title" id="readingsTitle">Leituras</h3>
@@ -101,6 +101,9 @@ async function loadStations() {
                 <span class="stat-card__value" style="font-size:15px">${s.name}</span>
                 <span class="stat-card__label">${s.property?.name ?? '—'}</span>
                 <span class="stat-card__sub">${s.readingCount} leituras</span>
+                <button class="btn btn--sm btn--danger" style="margin-top:8px" onclick="event.stopPropagation();deleteStation('${s.id}')">
+                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
+                </button>
             </div>
         </div>`).join('')}</div>`;
 }
@@ -148,6 +151,19 @@ async function fetchCurrent() {
     btn.innerHTML = '<span class="material-symbols-outlined">cloud_download</span> Buscar Atual';
     if (res?.ok) { toast('Leitura atualizada!'); await loadReadings(); }
     else { const e = await res?.json(); toast(e?.message ?? 'Erro ao buscar dados', 'error'); }
+}
+
+async function deleteStation(id) {
+    if (!confirm('Remover esta estação e todas as suas leituras?')) return;
+    const res = await Auth.fetch(`/api/v1/weather/stations/${id}`, { method: 'DELETE' });
+    if (res?.ok) {
+        toast('Estação removida');
+        if (selectedStation === id) {
+            selectedStation = null;
+            document.getElementById('readingsWrap').style.display = 'none';
+        }
+        await loadStations();
+    } else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
 }
 
 async function createStation() {

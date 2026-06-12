@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Api.Controllers;
 
+public record UpdateStockItemRequest(decimal? MinimumStock, decimal? UnitCost);
+
 public record CreateStockItemRequest(
     [Required] Guid PropertyId,
     [Required] Guid InputProductId,
@@ -105,6 +107,21 @@ public class StockController(AppDbContext db) : ControllerBase
         db.StockItems.Add(item);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetItem), new { id = item.Id }, new { item.Id });
+    }
+
+    [HttpPut("items/{id:guid}")]
+    public async Task<IActionResult> UpdateItem(Guid id, [FromBody] UpdateStockItemRequest req)
+    {
+        var item = await db.StockItems.Include(s => s.Property).FirstOrDefaultAsync(s => s.Id == id);
+        if (item is null) return NotFound();
+        if (!IsAdmin && item.Property!.OwnerId != UserId) return Forbid();
+
+        if (req.MinimumStock.HasValue) item.MinimumStock = req.MinimumStock.Value;
+        if (req.UnitCost.HasValue)     item.UnitCost     = req.UnitCost.Value;
+        item.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+        return Ok(new { item.Id, item.MinimumStock, item.UnitCost });
     }
 
     [HttpDelete("items/{id:guid}")]

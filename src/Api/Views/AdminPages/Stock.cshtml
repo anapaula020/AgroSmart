@@ -88,6 +88,28 @@
     </div>
 </div>
 
+<!-- Modal editar item -->
+<div class="modal" id="modalEditItem">
+    <div class="modal__box">
+        <h2 class="modal__title">Editar Item</h2>
+        <input type="hidden" id="editItemId" />
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="label">Estoque Mínimo</label>
+                <input class="input" id="editItemMin" type="number" step="0.01" />
+            </div>
+            <div class="form-group">
+                <label class="label">Custo Unitário (R$)</label>
+                <input class="input" id="editItemCost" type="number" step="0.01" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="updateItem()">Salvar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalEditItem')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 let allItems = [];
@@ -95,7 +117,7 @@ let allItems = [];
 async function init() {
     const [props, products] = await Promise.all([
         Auth.json('/api/v1/rural-properties') ?? [],
-        Auth.json('/api/v1/input-products') ?? []
+        Auth.json('/api/v1/inputproducts') ?? []
     ]);
 
     const propSel = document.getElementById('filterProp');
@@ -134,7 +156,7 @@ async function loadStock() {
     }
     wrap.innerHTML = `<div class="panel"><div class="panel__body panel__body--flush">
         <table class="table"><thead><tr>
-            <th>Produto</th><th>Tipo</th><th>Propriedade</th><th>Qtd. Atual</th><th>Mínimo</th><th>Status</th>
+            <th>Produto</th><th>Tipo</th><th>Propriedade</th><th>Qtd. Atual</th><th>Mínimo</th><th>Status</th><th class="th--right">Ações</th>
         </tr></thead><tbody>${items.map(i => `<tr>
             <td class="td--name">${i.inputProduct?.name ?? '—'}</td>
             <td class="text-muted">${i.inputProduct?.type ?? '—'}</td>
@@ -144,6 +166,12 @@ async function loadStock() {
             <td>${i.isLow
                 ? '<span class="badge sev--high">Baixo</span>'
                 : '<span class="badge badge--active">OK</span>'}</td>
+            <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
+                <button class="btn btn--sm btn--ghost" onclick="openEditItem('${i.id}')">Editar</button>
+                <button class="btn btn--sm btn--danger" onclick="deleteItem('${i.id}')">
+                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
+                </button>
+            </td>
         </tr>`).join('')}</tbody></table></div></div>`;
 }
 
@@ -173,6 +201,33 @@ async function createMovement() {
         closeModal('modalMovement');
         await loadStock();
     } else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+function openEditItem(id) {
+    const item = allItems.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('editItemId').value = id;
+    document.getElementById('editItemMin').value = item.minimumStock;
+    document.getElementById('editItemCost').value = item.unitCost;
+    openModal('modalEditItem');
+}
+
+async function updateItem() {
+    const id = document.getElementById('editItemId').value;
+    const body = {
+        minimumStock: parseFloat(document.getElementById('editItemMin').value) || 0,
+        unitCost: parseFloat(document.getElementById('editItemCost').value) || 0,
+    };
+    const res = await Auth.fetch(`/api/v1/stock/items/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    if (res?.ok) { toast('Item atualizado!'); closeModal('modalEditItem'); await loadStock(); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
+}
+
+async function deleteItem(id) {
+    if (!confirm('Excluir este item de estoque?')) return;
+    const res = await Auth.fetch(`/api/v1/stock/items/${id}`, { method: 'DELETE' });
+    if (res?.ok) { toast('Item removido'); await loadStock(); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro ao excluir. Item pode ter movimentações.', 'error'); }
 }
 
 init();

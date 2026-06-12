@@ -13,7 +13,8 @@ namespace Api.Controllers;
 [Route("account")]
 public class UserAccountController(
     UserManager<IdentityUser> userManager,
-    AppDbContext db) : Controller
+    AppDbContext db,
+    TokenService tokenService) : Controller
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
@@ -30,7 +31,9 @@ public class UserAccountController(
     {
         var user = await userManager.FindByIdAsync(UserId);
         if (user is null) return RedirectToAction("Login", "Login");
+        var roles = await userManager.GetRolesAsync(user);
         ViewData["Title"] = "Minha Conta";
+        ViewData["Token"] = await tokenService.GenerateAsync(user, roles);
         return View(user);
     }
 

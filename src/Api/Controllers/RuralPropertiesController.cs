@@ -36,7 +36,7 @@ public record UpdatePropertyRequest(
 );
 
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/rural-properties")]
 [Produces("application/json")]
 [Authorize]
 public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService ibge) : ControllerBase
@@ -102,6 +102,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
             Cep = req.Address.Cep, Logradouro = req.Address.Logradouro,
             Complemento = req.Address.Complemento, Bairro = req.Address.Bairro,
             Municipio = req.Address.Municipio, Uf = req.Address.Uf,
+            Latitude  = req.Address.Latitude,
             Longitude = req.Address.Longitude,
             IbgeCode  = ibgeResult.IbgeCode ?? req.Address.IbgeCode
         };

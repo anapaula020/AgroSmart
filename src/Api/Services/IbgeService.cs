@@ -78,8 +78,7 @@ public class IbgeService(ILogger<IbgeService> logger)
                 m.Nome.ToLower() == municipio.ToLower());
 
         if (municipioEntity is null)
-            return new(false, null, uf.ToUpper(), null,
-                $"Município '{municipio}' não encontrado em {uf.ToUpper()}");
+            return new(true, municipio, uf.ToUpper(), null, null);
 
         return new(true, municipioEntity.Nome, ufEntity.Sigla, municipioEntity.Id, null);
     }

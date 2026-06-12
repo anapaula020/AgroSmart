@@ -16,6 +16,7 @@
             <option value="StockLow">Estoque Baixo</option>
             <option value="HarvestStatus">Safra</option>
             <option value="WeatherWarning">Clima</option>
+            <option value="System">Sistema</option>
             <option value="Custom">Personalizado</option>
         </select>
         <label style="display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:13px">
@@ -27,7 +28,7 @@
         <button class="btn btn--ghost" onclick="markAllRead()">
             <span class="material-symbols-outlined">done_all</span> Marcar todos lidos
         </button>
-        <button class="btn btn--ghost" onclick="checkStock()">
+        <button class="btn btn--ghost" id="btnCheckStock" style="display:none" onclick="checkStock()">
             <span class="material-symbols-outlined">inventory_2</span> Verificar estoque
         </button>
         <button class="btn btn--primary" onclick="openModal('modalNewAlert')">
@@ -101,7 +102,18 @@ const typeLabels = { StockLow:'Estoque', HarvestStatus:'Safra', WeatherWarning:'
 
 let currentPage = 1;
 
+function isAdmin() {
+    try {
+        const token = localStorage.getItem('jwt');
+        if (!token) return false;
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const roles = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? [];
+        return Array.isArray(roles) ? roles.includes('Admin') : roles === 'Admin';
+    } catch { return false; }
+}
+
 async function init() {
+    if (isAdmin()) document.getElementById('btnCheckStock').style.display = '';
     const props = await Auth.json('/api/v1/rural-properties') ?? [];
     const sel = document.getElementById('alProp');
     props.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.name}</option>`);
@@ -177,7 +189,7 @@ async function markAllRead() {
 async function deleteAlert(id) {
     if (!confirm('Remover este alerta?')) return;
     const res = await Auth.fetch(`/api/v1/alerts/${id}`, { method: 'DELETE' });
-    if (res?.ok) { toast('Alerta removido'); await loadAlerts(currentPage); }
+    if (res?.ok) { toast('Alerta removido'); await loadAlerts(Math.max(1, currentPage - 1)); }
 }
 
 async function checkStock() {
