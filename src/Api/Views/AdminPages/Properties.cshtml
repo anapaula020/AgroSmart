@@ -11,6 +11,14 @@
     </div>
 </div>
 
+<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;margin-bottom:var(--space-2)">
+    <span class="material-symbols-outlined" style="color:var(--text-muted);font-size:18px">filter_list</span>
+    <span style="font-size:13px;color:var(--text-muted);white-space:nowrap">Workspace:</span>
+    <select id="wsFilter" class="input" style="width:auto;min-width:200px;max-width:280px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+        <option value="">Todos os workspaces</option>
+    </select>
+</div>
+
 <div id="listWrap">
     <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
 </div>
@@ -127,6 +135,25 @@
 @section Scripts {
 <script>
 let currentPropertyId = null;
+let currentWsId = null;
+
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    loadProperties();
+}
+
+function qs(wsId) { return wsId ? `?workspaceId=${wsId}` : ''; }
 
 (async () => {
     // Load UFs
@@ -155,11 +182,12 @@ let currentPropertyId = null;
     document.getElementById('fldIrrig').innerHTML = '<option value="">Selecione...</option>' +
         irrigs.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
 
+    await initWsFilter();
     await loadProperties();
 })();
 
 async function loadProperties() {
-    const data = await Auth.json('/api/v1/rural-properties');
+    const data = await Auth.json('/api/v1/rural-properties' + qs(currentWsId));
     const wrap = document.getElementById('listWrap');
     if (!data || data.length === 0) {
         wrap.innerHTML = `<div class="panel"><div class="empty">

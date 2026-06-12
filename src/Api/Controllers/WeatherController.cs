@@ -38,10 +38,17 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
 
     // ── Stations ──────────────────────────────────────────────────────────────
     [HttpGet("stations")]
-    public async Task<IActionResult> GetStations([FromQuery] Guid? propertyId = null)
+    public async Task<IActionResult> GetStations([FromQuery] Guid? propertyId = null, [FromQuery] Guid? workspaceId = null)
     {
         var query = db.WeatherStations.Include(s => s.Property).AsQueryable();
-        if (!User.IsManager())
+
+        if (workspaceId.HasValue)
+        {
+            if (!User.IsManager() && !await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == UserId))
+                return Forbid();
+            query = query.Where(s => s.Property!.WorkspaceId == workspaceId);
+        }
+        else if (!User.IsManager())
         {
             var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
             query = query.Where(s =>

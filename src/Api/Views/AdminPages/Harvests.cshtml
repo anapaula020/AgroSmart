@@ -4,6 +4,9 @@
 
 <div class="page-header">
     <div class="filter-bar">
+        <select id="wsFilter" class="input" style="min-width:180px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+            <option value="">Todos os workspaces</option>
+        </select>
         <select class="input" id="filterStatus" onchange="loadHarvests()">
             <option value="">Todos os status</option>
             <option value="Planned">Planejada</option>
@@ -105,10 +108,32 @@ const statusLabels = { Planned:'Planejada', InProgress:'Em Andamento', Harvested
 const statusClass  = { Planned:'status--planned', InProgress:'status--inprogress', Harvested:'status--harvested', Lost:'status--lost' };
 
 let harvestsData = [];
+let currentWsId  = null;
+
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    loadHarvests();
+}
+
+function qs(wsId) { return wsId ? `?workspaceId=${wsId}` : ''; }
 
 async function loadHarvests() {
     const status = document.getElementById('filterStatus').value;
-    const url    = '/api/v1/harvests' + (status ? `?status=${status}` : '');
+    const params = [];
+    if (status)      params.push(`status=${status}`);
+    if (currentWsId) params.push(`workspaceId=${currentWsId}`);
+    const url = '/api/v1/harvests' + (params.length ? '?' + params.join('&') : '');
     const data   = await Auth.json(url);
     harvestsData = data ?? [];
     const wrap   = document.getElementById('listWrap');
@@ -139,7 +164,7 @@ async function loadHarvests() {
 
 async function openNewHarvestModal() {
     const [fields, cultures] = await Promise.all([
-        Auth.json('/api/v1/rural-properties').then(async props => {
+        Auth.json('/api/v1/rural-properties' + qs(currentWsId)).then(async props => {
             if (!props?.length) return [];
             const all = await Promise.all(props.map(p =>
                 Auth.json(`/api/v1/rural-properties/${p.id}/fields`).then(fs => (fs||[]).map(f => ({...f, propName: p.name})))
@@ -205,6 +230,6 @@ async function deleteHarvest(id) {
     else { const e = await res?.json(); toast(e?.message ?? 'Erro', 'error'); }
 }
 
-loadHarvests();
+(async () => { await initWsFilter(); loadHarvests(); })();
 </script>
 }

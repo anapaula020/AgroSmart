@@ -4,6 +4,9 @@
 
 <div class="page-header">
     <div class="filter-bar">
+        <select id="wsFilter" class="input" style="min-width:180px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+            <option value="">Todos os workspaces</option>
+        </select>
         <select class="input" id="filterSeverity" onchange="loadAlerts()">
             <option value="">Todas as severidades</option>
             <option value="Low">Baixa</option>
@@ -101,12 +104,36 @@ const sevClass  = { Low:'sev--low', Medium:'sev--medium', High:'sev--high', Crit
 const typeLabels = { StockLow:'Estoque', HarvestStatus:'Safra', WeatherWarning:'Clima', System:'Sistema', Custom:'Custom' };
 
 let currentPage = 1;
+let currentWsId = null;
+
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
+
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    refreshAlertProps(currentWsId);
+    loadAlerts(1);
+}
+
+async function refreshAlertProps(wsId) {
+    const props = await Auth.json('/api/v1/rural-properties' + (wsId ? `?workspaceId=${wsId}` : '')) ?? [];
+    const sel = document.getElementById('alProp');
+    sel.innerHTML = '<option value="">Nenhuma</option>';
+    props.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.name}</option>`);
+}
 
 async function init() {
+    await initWsFilter();
     if (Auth.isManager()) document.getElementById('btnCheckStock').style.display = '';
-    const props = await Auth.json('/api/v1/rural-properties') ?? [];
-    const sel = document.getElementById('alProp');
-    props.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.name}</option>`);
+    await refreshAlertProps(null);
     await loadAlerts();
 }
 
@@ -117,9 +144,10 @@ async function loadAlerts(page = 1) {
     const unread  = document.getElementById('filterUnread').checked;
 
     let url = `/api/v1/alerts?page=${page}&pageSize=15`;
-    if (sev)    url += `&severity=${sev}`;
-    if (type)   url += `&type=${type}`;
-    if (unread) url += `&unreadOnly=true`;
+    if (sev)         url += `&severity=${sev}`;
+    if (type)        url += `&type=${type}`;
+    if (unread)      url += `&unreadOnly=true`;
+    if (currentWsId) url += `&workspaceId=${currentWsId}`;
 
     const data = await Auth.json(url);
     const wrap = document.getElementById('listWrap');

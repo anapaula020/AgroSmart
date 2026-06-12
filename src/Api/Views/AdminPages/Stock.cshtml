@@ -4,6 +4,9 @@
 
 <div class="page-header">
     <div class="filter-bar">
+        <select id="wsFilter" class="input" style="min-width:180px;padding:6px 10px;font-size:13px" onchange="onWsFilterChange()">
+            <option value="">Todos os workspaces</option>
+        </select>
         <select class="input" id="filterProp" onchange="loadStock()">
             <option value="">Todas as propriedades</option>
         </select>
@@ -112,33 +115,56 @@
 
 @section Scripts {
 <script>
-let allItems = [];
+let allItems    = [];
+let currentWsId = null;
 
-async function init() {
-    const [props, products] = await Promise.all([
-        Auth.json('/api/v1/rural-properties') ?? [],
-        Auth.json('/api/v1/inputproducts') ?? []
-    ]);
+async function initWsFilter() {
+    const workspaces = await Auth.json('/api/v1/workspaces');
+    if (!workspaces?.length) return;
+    const sel = document.getElementById('wsFilter');
+    workspaces.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name;
+        sel.appendChild(opt);
+    });
+}
 
-    const propSel = document.getElementById('filterProp');
+function onWsFilterChange() {
+    currentWsId = document.getElementById('wsFilter').value || null;
+    refreshPropSelects(currentWsId);
+    loadStock();
+}
+
+async function refreshPropSelects(wsId) {
+    const props = await Auth.json('/api/v1/rural-properties' + (wsId ? `?workspaceId=${wsId}` : '')) ?? [];
+    const propSel     = document.getElementById('filterProp');
     const itemPropSel = document.getElementById('itemProp');
-    (props||[]).forEach(p => {
-        propSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    propSel.innerHTML     = '<option value="">Todas as propriedades</option>';
+    itemPropSel.innerHTML = '<option value="">Selecione...</option>';
+    props.forEach(p => {
+        propSel.innerHTML     += `<option value="${p.id}">${p.name}</option>`;
         itemPropSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
     });
+}
 
+async function init() {
+    await initWsFilter();
+    const products = await Auth.json('/api/v1/inputproducts') ?? [];
     const itemProductSel = document.getElementById('itemProduct');
-    (products||[]).forEach(p => {
+    products.forEach(p => {
         itemProductSel.innerHTML += `<option value="${p.id}">${p.name} (${p.type})</option>`;
     });
-
+    await refreshPropSelects(null);
     await loadStock();
 }
 
 async function loadStock() {
-    const propId = document.getElementById('filterProp').value;
+    const propId  = document.getElementById('filterProp').value;
     const lowOnly = document.getElementById('filterLow').checked;
-    const url = '/api/v1/stock/items' + (propId ? `?propertyId=${propId}` : '');
+    const params  = [];
+    if (propId)          params.push(`propertyId=${propId}`);
+    else if (currentWsId) params.push(`workspaceId=${currentWsId}`);
+    const url = '/api/v1/stock/items' + (params.length ? '?' + params.join('&') : '');
     allItems = await Auth.json(url) ?? [];
     let items = lowOnly ? allItems.filter(i => i.isLow) : allItems;
 
