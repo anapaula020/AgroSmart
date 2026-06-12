@@ -21,6 +21,8 @@ public record CreateStationRequest(
 [Route("api/v1/weather")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class WeatherController(AppDbContext db, OpenWeatherService weather) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;

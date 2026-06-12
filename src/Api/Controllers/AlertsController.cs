@@ -23,6 +23,8 @@ public record CreateAlertRequest(
 [Route("api/v1/[controller]")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class AlertsController(AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;

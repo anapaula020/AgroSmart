@@ -119,44 +119,72 @@ builder.Services.AddControllersWithViews()
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// ── Swagger com JWT ───────────────────────────────────────────────────────────
+// ── Swagger ───────────────────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title   = builder.Configuration["App:Name"] ?? "API",
-        Version = "v1",
-        Contact = new OpenApiContact { Name = "Dev Team" }
+        Title       = builder.Configuration["App:Name"] ?? "AgroSmart API",
+        Version     = "v1",
+        Description = "API REST para gestão agrícola - propriedades, safras, estoque, clima e workspaces.",
+        Contact     = new OpenApiContact { Name = "AgroSmart Dev", Email = "dev@agrosmart.com" }
     });
 
-    var jwtScheme = new OpenApiSecurityScheme
+    // ── Autenticação ──────────────────────────────────────────────────────────
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name         = "Authorization",
-        Description  = "JWT Bearer. Exemplo: **Bearer {token}**",
+        Description  = "JWT Bearer. Informe: **Bearer {seu_token}**",
         In           = ParameterLocation.Header,
         Type         = SecuritySchemeType.Http,
         Scheme       = "bearer",
-        BearerFormat = "JWT",
-        Reference    = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-    };
-    c.AddSecurityDefinition("Bearer", jwtScheme);
+        BearerFormat = "JWT"
+    });
 
-    var apiKeyScheme = new OpenApiSecurityScheme
+    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
         Name        = "X-Api-Key",
-        Description = "API Key gerada pelo usuário",
+        Description = "API Key vinculada ao workspace ou usuário",
         In          = ParameterLocation.Header,
-        Type        = SecuritySchemeType.ApiKey,
-        Reference   = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" }
-    };
-    c.AddSecurityDefinition("ApiKey", apiKeyScheme);
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        { jwtScheme,    Array.Empty<string>() },
-        { apiKeyScheme, Array.Empty<string>() }
+        Type        = SecuritySchemeType.ApiKey
     });
+
+    // Segurança aplicada por endpoint (Bearer OU ApiKey) via OperationFilter
+    c.OperationFilter<Api.Middleware.SecurityRequirementsOperationFilter>();
+
+    // ── Enums como strings ────────────────────────────────────────────────────
+    c.SchemaFilter<Api.Middleware.StringEnumSchemaFilter>();
+
+    // ── Agrupamento por domínio ───────────────────────────────────────────────
+    c.TagActionsBy(api =>
+    {
+        api.ActionDescriptor.RouteValues.TryGetValue("controller", out var ctrl);
+        ctrl ??= "";
+        return ctrl switch
+        {
+            "Auth"                                                              => new[] { "Autenticação" },
+            "RuralProperties"                                                   => new[] { "Propriedades Rurais" },
+            "Harvests"                                                          => new[] { "Safras" },
+            "Stock"                                                             => new[] { "Estoque" },
+            "Weather"                                                           => new[] { "Clima" },
+            "Alerts"                                                            => new[] { "Alertas" },
+            "Workspaces"                                                        => new[] { "Workspaces" },
+            "Cultures" or "SoilTypes" or "IrrigationTypes" or "InputProducts"  => new[] { "Tabelas de Apoio" },
+            "Users" or "Profiles" or "ApiKeys"                                 => new[] { "Usuários e Permissões" },
+            "Ibge"                                                              => new[] { "IBGE" },
+            "Products" or "Categories"                                          => new[] { "Produtos" },
+            _                                                                   => new[] { ctrl }
+        };
+    });
+
+    c.OrderActionsBy(a =>
+    {
+        a.ActionDescriptor.RouteValues.TryGetValue("controller", out var ctrl);
+        return $"{ctrl}_{a.RelativePath}_{a.HttpMethod}";
+    });
+
+    c.EnableAnnotations();
 });
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -184,8 +212,13 @@ app.UseSerilogRequestLogging();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
-    c.RoutePrefix = "swagger";
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "AgroSmart API v1");
+    c.RoutePrefix          = "swagger";
+    c.DocumentTitle        = "AgroSmart API";
+    c.ConfigObject.PersistAuthorization = true;
+    c.DisplayRequestDuration();
+    c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+    c.DefaultModelsExpandDepth(-1);
 });
 
 app.UseStaticFiles();

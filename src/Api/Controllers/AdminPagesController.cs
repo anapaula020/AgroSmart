@@ -5,6 +5,7 @@ namespace Api.Controllers;
 
 [Route("admin/[action]")]
 [Authorize(AuthenticationSchemes = "Identity.Application")]
+[ApiExplorerSettings(IgnoreApi = true)]
 public class AdminPagesController : Controller
 {
     public IActionResult Properties() { ViewData["Title"] = "Propriedades"; return View(); }

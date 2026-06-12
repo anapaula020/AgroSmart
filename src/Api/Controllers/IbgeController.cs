@@ -11,6 +11,7 @@ namespace Api.Controllers;
 [Route("api/v1/ibge")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public class IbgeController(AppDbContext db, IHttpClientFactory httpFactory, IConfiguration config) : ControllerBase
 {
     private record IbgeMunicipioResponse(int Id, string Nome);

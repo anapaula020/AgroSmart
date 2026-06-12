@@ -11,7 +11,10 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/v1/workspaces")]
+[Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class WorkspacesController(AppDbContext db, UserManager<IdentityUser> userManager) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;

@@ -12,6 +12,8 @@ namespace Api.Controllers;
 [Route("api/v1/users")]
 [Produces("application/json")]
 [Authorize(Roles = Api.Roles.Admin)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class UsersController(UserManager<IdentityUser> userManager) : ControllerBase
 {
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;

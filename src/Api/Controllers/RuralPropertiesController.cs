@@ -37,6 +37,8 @@ public record UpdatePropertyRequest(
 [Route("api/v1/rural-properties")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService ibge) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;

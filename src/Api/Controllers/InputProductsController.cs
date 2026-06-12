@@ -21,6 +21,8 @@ public record CreateInputProductRequest(
 [Route("api/v1/[controller]")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class InputProductsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

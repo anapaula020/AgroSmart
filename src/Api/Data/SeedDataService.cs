@@ -49,14 +49,14 @@ public static class SeedDataService
         public static readonly Guid Prop2 = new("ffff0001-0000-0000-0000-000000000002");
         public static readonly Guid Prop3 = new("ffff0001-0000-0000-0000-000000000003");
 
-        // Fields — Prop1
+        // Fields - Prop1
         public static readonly Guid FieldP1A = new("1111f001-0000-0000-0000-000000000001");
         public static readonly Guid FieldP1B = new("1111f001-0000-0000-0000-000000000002");
         public static readonly Guid FieldP1C = new("1111f001-0000-0000-0000-000000000003");
-        // Fields — Prop2
+        // Fields - Prop2
         public static readonly Guid FieldP2A = new("2222f001-0000-0000-0000-000000000001");
         public static readonly Guid FieldP2B = new("2222f001-0000-0000-0000-000000000002");
-        // Fields — Prop3
+        // Fields - Prop3
         public static readonly Guid FieldP3A = new("3333f001-0000-0000-0000-000000000001");
         public static readonly Guid FieldP3B = new("3333f001-0000-0000-0000-000000000002");
         public static readonly Guid FieldP3C = new("3333f001-0000-0000-0000-000000000003");
@@ -267,14 +267,14 @@ public static class SeedDataService
         );
 
         db.Fields.AddRange(
-            // Prop1 — 3 talhões
+            // Prop1 - 3 talhões
             new Field { Id = Ids.FieldP1A, PropertyId = Ids.Prop1, Name = "Talhão Norte",        AreaHa = 320.0m, SoilTypeId = Ids.SoilLatossolo, IrrigationTypeId = Ids.IrrigPivot },
             new Field { Id = Ids.FieldP1B, PropertyId = Ids.Prop1, Name = "Talhão Sul",          AreaHa = 280.0m, SoilTypeId = Ids.SoilArgissolo, IrrigationTypeId = Ids.IrrigPivot },
             new Field { Id = Ids.FieldP1C, PropertyId = Ids.Prop1, Name = "Talhão Leste",        AreaHa = 180.0m, SoilTypeId = Ids.SoilLatossolo, IrrigationTypeId = Ids.IrrigSequeiro },
-            // Prop2 — 2 talhões
+            // Prop2 - 2 talhões
             new Field { Id = Ids.FieldP2A, PropertyId = Ids.Prop2, Name = "Área Principal",      AreaHa = 85.0m,  SoilTypeId = Ids.SoilNeossolo,  IrrigationTypeId = Ids.IrrigSequeiro },
             new Field { Id = Ids.FieldP2B, PropertyId = Ids.Prop2, Name = "Área de Irrigação",   AreaHa = 25.0m,  SoilTypeId = Ids.SoilArgissolo, IrrigationTypeId = Ids.IrrigGotejamento },
-            // Prop3 — 3 talhões
+            // Prop3 - 3 talhões
             new Field { Id = Ids.FieldP3A, PropertyId = Ids.Prop3, Name = "Módulo A",            AreaHa = 200.0m, SoilTypeId = Ids.SoilLatossolo, IrrigationTypeId = Ids.IrrigPivot },
             new Field { Id = Ids.FieldP3B, PropertyId = Ids.Prop3, Name = "Módulo B",            AreaHa = 150.0m, SoilTypeId = Ids.SoilLatossolo, IrrigationTypeId = Ids.IrrigPivot },
             new Field { Id = Ids.FieldP3C, PropertyId = Ids.Prop3, Name = "Módulo C - Sequeiro", AreaHa = 60.0m,  SoilTypeId = Ids.SoilNeossolo,  IrrigationTypeId = Ids.IrrigSequeiro }
@@ -290,7 +290,7 @@ public static class SeedDataService
             new Harvest
             {
                 Id = Ids.Harvest1, FieldId = Ids.FieldP1A, CultureId = Ids.CultureSoja, ResponsibleUserId = userId,
-                Name = "Safra Soja 2024/25 — Talhão Norte",
+                Name = "Safra Soja 2024/25 - Talhão Norte",
                 PlantingDate = new DateOnly(2024, 10, 15), ExpectedHarvestDate = new DateOnly(2025, 2, 20),
                 ActualHarvestDate = new DateOnly(2025, 2, 25), Status = HarvestStatus.Harvested,
                 EstimatedYieldTons = 1152.0m, ActualYieldTons = 1184.0m
@@ -298,28 +298,28 @@ public static class SeedDataService
             new Harvest
             {
                 Id = Ids.Harvest2, FieldId = Ids.FieldP1B, CultureId = Ids.CultureMilho, ResponsibleUserId = userId,
-                Name = "Safra Milho 2024/25 — Talhão Sul",
+                Name = "Safra Milho 2024/25 - Talhão Sul",
                 PlantingDate = new DateOnly(2024, 11, 5), ExpectedHarvestDate = new DateOnly(2025, 4, 10),
                 Status = HarvestStatus.InProgress, EstimatedYieldTons = 3360.0m
             },
             new Harvest
             {
                 Id = Ids.Harvest3, FieldId = Ids.FieldP2A, CultureId = Ids.CultureFeijao, ResponsibleUserId = userId,
-                Name = "Safra Feijão 2025 — Área Principal",
+                Name = "Safra Feijão 2025 - Área Principal",
                 PlantingDate = new DateOnly(2025, 1, 20), ExpectedHarvestDate = new DateOnly(2025, 4, 20),
                 Status = HarvestStatus.Planned, EstimatedYieldTons = 127.5m
             },
             new Harvest
             {
                 Id = Ids.Harvest4, FieldId = Ids.FieldP3A, CultureId = Ids.CultureAlgodao, ResponsibleUserId = userId,
-                Name = "Safra Algodão 2024/25 — Módulo A",
+                Name = "Safra Algodão 2024/25 - Módulo A",
                 PlantingDate = new DateOnly(2024, 11, 20), ExpectedHarvestDate = new DateOnly(2025, 5, 30),
                 Status = HarvestStatus.InProgress, EstimatedYieldTons = 540.0m
             },
             new Harvest
             {
                 Id = Ids.Harvest5, FieldId = Ids.FieldP1C, CultureId = Ids.CultureSoja, ResponsibleUserId = userId,
-                Name = "Safra Soja 2024/25 — Talhão Leste",
+                Name = "Safra Soja 2024/25 - Talhão Leste",
                 PlantingDate = new DateOnly(2024, 10, 20), ExpectedHarvestDate = new DateOnly(2025, 2, 28),
                 ActualHarvestDate = new DateOnly(2025, 3, 3), Status = HarvestStatus.Harvested,
                 EstimatedYieldTons = 612.0m, ActualYieldTons = 594.0m
@@ -327,7 +327,7 @@ public static class SeedDataService
             new Harvest
             {
                 Id = Ids.Harvest6, FieldId = Ids.FieldP3B, CultureId = Ids.CultureMilho, ResponsibleUserId = userId,
-                Name = "Safra Milho 2025/26 — Módulo B",
+                Name = "Safra Milho 2025/26 - Módulo B",
                 PlantingDate = new DateOnly(2025, 10, 1), ExpectedHarvestDate = new DateOnly(2026, 3, 15),
                 Status = HarvestStatus.Planned, EstimatedYieldTons = 1800.0m
             }
@@ -372,16 +372,16 @@ public static class SeedDataService
         );
 
         db.StockMovements.AddRange(
-            new StockMovement { Id = Ids.Mov1,  StockItemId = Ids.Stock1, UserId = userId, Type = MovementType.Entrada, Quantity = 5000.0m, Reason = "Compra NF 4521 — Agrostore Palmas",        MovedAt = new DateTime(2024, 9,  10, 8,  0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov2,  StockItemId = Ids.Stock2, UserId = userId, Type = MovementType.Entrada, Quantity = 400.0m,  Reason = "Compra NF 4522 — Agrostore Palmas",        MovedAt = new DateTime(2024, 9,  10, 8, 30, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov1,  StockItemId = Ids.Stock1, UserId = userId, Type = MovementType.Entrada, Quantity = 5000.0m, Reason = "Compra NF 4521 - Agrostore Palmas",        MovedAt = new DateTime(2024, 9,  10, 8,  0, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov2,  StockItemId = Ids.Stock2, UserId = userId, Type = MovementType.Entrada, Quantity = 400.0m,  Reason = "Compra NF 4522 - Agrostore Palmas",        MovedAt = new DateTime(2024, 9,  10, 8, 30, 0, DateTimeKind.Utc) },
             new StockMovement { Id = Ids.Mov3,  StockItemId = Ids.Stock3, UserId = userId, Type = MovementType.Entrada, Quantity = 320.0m,  Reason = "Compra sementes safra 24/25",              MovedAt = new DateTime(2024, 9,  15, 10, 0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov4,  StockItemId = Ids.Stock1, UserId = userId, Type = MovementType.Saida,   Quantity = 800.0m,  Reason = "Adubação de cobertura — Talhão Norte",     MovedAt = new DateTime(2024, 12,  5, 7,  0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov5,  StockItemId = Ids.Stock3, UserId = userId, Type = MovementType.Saida,   Quantity = 272.0m,  Reason = "Plantio — Talhão Norte (320 ha × 0,85 sc/ha)", MovedAt = new DateTime(2024, 10, 14, 6,  0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov6,  StockItemId = Ids.Stock7, UserId = userId, Type = MovementType.Entrada, Quantity = 6000.0m, Reason = "Compra NF 7810 — Distribuidora Araguaína", MovedAt = new DateTime(2024, 10,  5, 9,  0, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov4,  StockItemId = Ids.Stock1, UserId = userId, Type = MovementType.Saida,   Quantity = 800.0m,  Reason = "Adubação de cobertura - Talhão Norte",     MovedAt = new DateTime(2024, 12,  5, 7,  0, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov5,  StockItemId = Ids.Stock3, UserId = userId, Type = MovementType.Saida,   Quantity = 272.0m,  Reason = "Plantio - Talhão Norte (320 ha × 0,85 sc/ha)", MovedAt = new DateTime(2024, 10, 14, 6,  0, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov6,  StockItemId = Ids.Stock7, UserId = userId, Type = MovementType.Entrada, Quantity = 6000.0m, Reason = "Compra NF 7810 - Distribuidora Araguaína", MovedAt = new DateTime(2024, 10,  5, 9,  0, 0, DateTimeKind.Utc) },
             new StockMovement { Id = Ids.Mov7,  StockItemId = Ids.Stock8, UserId = userId, Type = MovementType.Entrada, Quantity = 200.0m,  Reason = "Compra sementes algodão safra 24/25",      MovedAt = new DateTime(2024, 10, 18, 8,  0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov8,  StockItemId = Ids.Stock8, UserId = userId, Type = MovementType.Saida,   Quantity = 20.0m,   Reason = "Plantio — Módulo A (200 ha × 0,1 sc/ha)",  MovedAt = new DateTime(2024, 11, 20, 6,  0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov9,  StockItemId = Ids.Stock6, UserId = userId, Type = MovementType.Entrada, Quantity = 800.0m,  Reason = "Compra NF 2203 — Cooperativa Porto Nacional", MovedAt = new DateTime(2024, 12, 10, 9, 0, 0, DateTimeKind.Utc) },
-            new StockMovement { Id = Ids.Mov10, StockItemId = Ids.Stock4, UserId = userId, Type = MovementType.Entrada, Quantity = 100.0m,  Reason = "Compra NF 4601 — Agrostore Palmas",        MovedAt = new DateTime(2024, 11,  3, 14, 0, 0, DateTimeKind.Utc) }
+            new StockMovement { Id = Ids.Mov8,  StockItemId = Ids.Stock8, UserId = userId, Type = MovementType.Saida,   Quantity = 20.0m,   Reason = "Plantio - Módulo A (200 ha × 0,1 sc/ha)",  MovedAt = new DateTime(2024, 11, 20, 6,  0, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov9,  StockItemId = Ids.Stock6, UserId = userId, Type = MovementType.Entrada, Quantity = 800.0m,  Reason = "Compra NF 2203 - Cooperativa Porto Nacional", MovedAt = new DateTime(2024, 12, 10, 9, 0, 0, DateTimeKind.Utc) },
+            new StockMovement { Id = Ids.Mov10, StockItemId = Ids.Stock4, UserId = userId, Type = MovementType.Entrada, Quantity = 100.0m,  Reason = "Compra NF 4601 - Agrostore Palmas",        MovedAt = new DateTime(2024, 11,  3, 14, 0, 0, DateTimeKind.Utc) }
         );
 
         db.HarvestInputs.AddRange(
@@ -389,13 +389,13 @@ public static class SeedDataService
             {
                 Id = Ids.HInput1, HarvestId = Ids.Harvest1, StockMovementId = Ids.Mov5,
                 AppliedAt = new DateTime(2024, 10, 14, 6, 0, 0, DateTimeKind.Utc),
-                QuantityUsed = 272.0m, ApplicationMethod = "Plantio mecanizado — plantadeira 24 linhas"
+                QuantityUsed = 272.0m, ApplicationMethod = "Plantio mecanizado - plantadeira 24 linhas"
             },
             new HarvestInput
             {
                 Id = Ids.HInput2, HarvestId = Ids.Harvest1, StockMovementId = Ids.Mov4,
                 AppliedAt = new DateTime(2024, 12, 5, 7, 0, 0, DateTimeKind.Utc),
-                QuantityUsed = 800.0m, ApplicationMethod = "Aplicação aérea — adubação nitrogenada de cobertura"
+                QuantityUsed = 800.0m, ApplicationMethod = "Aplicação aérea - adubação nitrogenada de cobertura"
             }
         );
     }
@@ -460,7 +460,7 @@ public static class SeedDataService
             {
                 Id = Ids.Alert4, CreatedByUserId = userId,
                 Type = AlertType.WeatherWarning, Severity = AlertSeverity.Medium,
-                Title = "Chuva intensa registrada — Cerrado Verde",
+                Title = "Chuva intensa registrada - Cerrado Verde",
                 Message = "A estação meteorológica registrou 8,6 mm de chuva na última meia hora. Verifique as condições de campo antes de realizar operações mecanizadas.",
                 PropertyId = Ids.Prop1, IsRead = false,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-30)
@@ -469,7 +469,7 @@ public static class SeedDataService
             {
                 Id = Ids.Alert5, CreatedByUserId = userId,
                 Type = AlertType.HarvestStatus, Severity = AlertSeverity.Low,
-                Title = "Colheita de soja concluída — Talhão Leste",
+                Title = "Colheita de soja concluída - Talhão Leste",
                 Message = "Safra Soja 2024/25 no Talhão Leste encerrada em 03/03/2025. Produtividade: 3,30 t/ha (meta: 3,40 t/ha). Déficit hídrico em fevereiro impactou resultado.",
                 PropertyId = Ids.Prop1, HarvestId = Ids.Harvest5, IsRead = true,
                 CreatedAt = DateTime.UtcNow.AddDays(-7)
@@ -492,7 +492,7 @@ public static class SeedDataService
             new Workspace
             {
                 Id = Ids.Workspace2, OwnerId = ownerId1,
-                Name = "Fazenda Rio Branco — Equipe", Slug = "fazenda-rio-branco-equipe",
+                Name = "Fazenda Rio Branco - Equipe", Slug = "fazenda-rio-branco-equipe",
                 Description = "Equipe de operação da Fazenda Rio Branco."
             }
         );

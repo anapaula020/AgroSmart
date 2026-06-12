@@ -77,8 +77,8 @@ function toast(msg, type = 'success') {
 
 // ── Format helpers ────────────────────────────────────────────────────────────
 const fmtBRL  = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
-const fmtNum  = n => n != null ? Number(n).toLocaleString('pt-BR') : '—';
+const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+const fmtNum  = n => n != null ? Number(n).toLocaleString('pt-BR') : '-';
 
 // ── Role-based UI visibility ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

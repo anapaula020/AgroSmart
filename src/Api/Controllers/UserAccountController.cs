@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Api.Controllers;
 
 [Route("account")]
+[ApiExplorerSettings(IgnoreApi = true)]
 public class UserAccountController(
     UserManager<IdentityUser> userManager,
     AppDbContext db,

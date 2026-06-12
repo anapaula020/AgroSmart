@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controllers;
 
 [Route("[action]")]
+[ApiExplorerSettings(IgnoreApi = true)]
 public class LoginController(
     UserManager<IdentityUser> userManager,
     SignInManager<IdentityUser> signInManager,

@@ -35,6 +35,8 @@ public record CreateProductivityRecordRequest(
 [Route("api/v1/[controller]")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class HarvestsController(AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
