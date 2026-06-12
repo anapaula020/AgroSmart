@@ -15,9 +15,7 @@ public record AddressRequest(
     [Required] string Bairro,
     [Required] string Municipio,
     [Required, StringLength(2, MinimumLength = 2)] string Uf,
-    int? IbgeCode,
-    decimal? Latitude,
-    decimal? Longitude
+    int? IbgeCode
 );
 
 public record CreatePropertyRequest(
@@ -79,7 +77,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
             Address = p.Address is null ? null : new {
                 p.Address.Id, p.Address.Cep, p.Address.Logradouro, p.Address.Complemento,
                 p.Address.Bairro, p.Address.Municipio, p.Address.Uf,
-                p.Address.IbgeCode, p.Address.Latitude, p.Address.Longitude
+                p.Address.IbgeCode
             },
             Fields = p.Fields.Select(f => new {
                 f.Id, f.Name, f.AreaHa,
@@ -102,8 +100,6 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
             Cep = req.Address.Cep, Logradouro = req.Address.Logradouro,
             Complemento = req.Address.Complemento, Bairro = req.Address.Bairro,
             Municipio = req.Address.Municipio, Uf = req.Address.Uf,
-            Latitude  = req.Address.Latitude,
-            Longitude = req.Address.Longitude,
             IbgeCode  = ibgeResult.IbgeCode ?? req.Address.IbgeCode
         };
         db.Addresses.Add(address);

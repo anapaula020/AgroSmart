@@ -388,20 +388,44 @@ a { color: var(--accent); text-decoration: none; }
 /* ── Modal ──────────────────────────────────────────────── */
 .modal {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.4);
+  background: rgba(0,0,0,.5);
   z-index: 1000; align-items: center; justify-content: center;
+  padding: var(--space-6);
 }
 .modal.open { display: flex; }
 .modal__box {
   background: var(--bg-2); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: var(--space-8);
+  border-radius: var(--radius-lg); padding: var(--space-6);
   width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg); position: relative;
+  animation: modalIn .15s ease;
 }
+.modal__box--structured { padding: 0; overflow: hidden; }
 .modal__title {
-  font-family: var(--font-ui); font-size: 16px; font-weight: 700;
+  font-family: var(--font-ui); font-size: 15px; font-weight: 700;
   margin-bottom: var(--space-5); color: var(--text);
+  padding-right: var(--space-8);
 }
+.modal__close {
+  position: absolute; top: var(--space-3); right: var(--space-3);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); display: flex; padding: 4px;
+  border-radius: var(--radius); transition: all .15s; line-height: 1; z-index: 1;
+}
+.modal__close:hover { color: var(--text); background: var(--bg-3); }
+.modal__close .material-symbols-outlined { font-size: 18px; }
+.modal__header {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--border);
+}
+.modal__header .modal__title { margin-bottom: 0; flex: 1; padding-right: 0; }
+.modal__header .modal__close { position: static; }
+.modal__body { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
+.modal__footer {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border);
+}
+@keyframes modalIn { from { opacity:0; transform: translateY(8px) scale(.98); } to { opacity:1; transform: none; } }
 
 /* ── Form ───────────────────────────────────────────────── */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-5); }
@@ -688,68 +712,6 @@ select.field-input { cursor: pointer; }
 .badge--warn   { background: rgba(245,158,11,.12); color: var(--warn); }
 .badge--info   { background: rgba(96,165,250,.12); color: #60a5fa; }
 .badge--muted  { background: var(--bg-3); color: var(--text-muted); }
-
-/* ── Modal ──────────────────────────────────────────── */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.6);
-  backdrop-filter: blur(4px);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-}
-.modal {
-  background: var(--bg-2);
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 480px;
-  box-shadow: 0 24px 48px rgba(0,0,0,.6);
-  animation: modalIn .15s ease;
-}
-@keyframes modalIn { from { opacity:0; transform: translateY(8px) scale(.98); } to { opacity:1; transform: none; } }
-
-.modal__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--border);
-}
-.modal__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-ui);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  flex: 1;
-}
-.modal__title .material-symbols-outlined { font-size: 18px; }
-.modal__close {
-  background: none; border: none; cursor: pointer;
-  color: var(--text-muted); display: flex; padding: 4px; border-radius: var(--radius);
-  transition: color .15s;
-}
-.modal__close:hover { color: var(--text); }
-
-.modal__body {
-  padding: var(--space-6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-.modal__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: var(--space-4) var(--space-6);
-  border-top: 1px solid var(--border);
-}
 
 /* ── Key reveal ─────────────────────────────────────── */
 .key-reveal-banner {

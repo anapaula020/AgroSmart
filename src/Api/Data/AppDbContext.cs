@@ -75,8 +75,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             GuidPk(e);
             e.Property(a => a.Cep).HasMaxLength(10);
             e.Property(a => a.Uf).HasMaxLength(2);
-            e.Property(a => a.Latitude).HasColumnType("decimal(9,6)");
-            e.Property(a => a.Longitude).HasColumnType("decimal(9,6)");
         });
 
         // ── RuralProperty ─────────────────────────────────────────────────────

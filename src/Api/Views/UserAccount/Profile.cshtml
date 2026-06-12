@@ -149,14 +149,14 @@
 </div><!-- /profile-page -->
 
 <!-- ── Modal: criar chave ──────────────────────────────────────────────── -->
-<div class="modal-backdrop" id="createModal" style="display:none" onclick="closeCreateModal(event)">
-    <div class="modal" onclick="event.stopPropagation()">
+<div class="modal" id="createModal">
+    <div class="modal__box modal__box--structured" onclick="event.stopPropagation()">
         <div class="modal__header">
             <h4 class="modal__title">
                 <span class="material-symbols-outlined">add_circle</span>
                 Nova API Key
             </h4>
-            <button class="modal__close" onclick="closeCreateModal()">
+            <button class="modal__close" onclick="closeModal('createModal')">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
@@ -181,7 +181,7 @@
             <div class="field-hint" id="createHint"></div>
         </div>
         <div class="modal__footer">
-            <button class="btn btn--ghost" onclick="closeCreateModal()">Cancelar</button>
+            <button class="btn btn--ghost" onclick="closeModal('createModal')">Cancelar</button>
             <button class="btn btn--accent" onclick="createKey()">
                 <span class="material-symbols-outlined">add</span>
                 Gerar chave
@@ -191,13 +191,16 @@
 </div>
 
 <!-- ── Modal: exibir chave criada ──────────────────────────────────────── -->
-<div class="modal-backdrop" id="revealModal" style="display:none" onclick="closeRevealModal(event)">
-    <div class="modal" onclick="event.stopPropagation()">
+<div class="modal" id="revealModal">
+    <div class="modal__box modal__box--structured" onclick="event.stopPropagation()">
         <div class="modal__header">
             <h4 class="modal__title">
                 <span class="material-symbols-outlined" style="color:var(--accent)">key</span>
                 Chave gerada!
             </h4>
+            <button class="modal__close" onclick="closeModal('revealModal')">
+                <span class="material-symbols-outlined">close</span>
+            </button>
         </div>
         <div class="modal__body">
             <div class="key-reveal-banner">
@@ -213,7 +216,7 @@
             </div>
         </div>
         <div class="modal__footer">
-            <button class="btn btn--accent" onclick="closeRevealModal()">Entendi, já copiei</button>
+            <button class="btn btn--accent" onclick="closeModal('revealModal')">Entendi, já copiei</button>
         </div>
     </div>
 </div>
@@ -348,16 +351,11 @@
     // ── Create key modal ──────────────────────────────────────────────────────
     function openCreateModal() {
         document.getElementById('keyName').value = '';
-        document.getElementById('keyScope').value = '0';
+        document.getElementById('keyScope').value = 'ReadOnly';
         document.getElementById('keyExpires').value = '';
         document.getElementById('createHint').textContent = '';
-        document.getElementById('createModal').style.display = 'flex';
+        openModal('createModal');
         setTimeout(() => document.getElementById('keyName').focus(), 50);
-    }
-
-    function closeCreateModal(e) {
-        if (e && e.target !== document.getElementById('createModal')) return;
-        document.getElementById('createModal').style.display = 'none';
     }
 
     async function createKey() {
@@ -370,10 +368,10 @@
 
         const res = await post('/account/apikeys', { name, scope, expiresAt });
         if (res.ok) {
-            document.getElementById('createModal').style.display = 'none';
+            closeModal('createModal');
             document.getElementById('revealKey').textContent = res.rawKey;
             document.getElementById('copyIcon').textContent = 'content_copy';
-            document.getElementById('revealModal').style.display = 'flex';
+            openModal('revealModal');
             loadKeys();
         } else {
             hintEl.textContent = res.error ?? 'Erro ao criar chave.';
@@ -382,11 +380,6 @@
     }
 
     // ── Reveal modal ──────────────────────────────────────────────────────────
-    function closeRevealModal(e) {
-        if (e && e.target !== document.getElementById('revealModal')) return;
-        document.getElementById('revealModal').style.display = 'none';
-    }
-
     async function copyKey() {
         const key = document.getElementById('revealKey').textContent;
         await navigator.clipboard.writeText(key);
@@ -403,8 +396,8 @@
     // Keyboard shortcut: Esc closes modals
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
-            document.getElementById('createModal').style.display = 'none';
-            document.getElementById('revealModal').style.display = 'none';
+            closeModal('createModal');
+            closeModal('revealModal');
         }
     });
 </script>

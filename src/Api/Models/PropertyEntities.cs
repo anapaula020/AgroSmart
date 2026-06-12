@@ -10,8 +10,6 @@ public class Address : BaseEntity
     public string Municipio    { get; set; } = string.Empty;
     public string Uf           { get; set; } = string.Empty;
     public int?   IbgeCode     { get; set; }
-    public decimal? Latitude   { get; set; }
-    public decimal? Longitude  { get; set; }
 }
 
 // ── Propriedade Rural ─────────────────────────────────────────────────────────

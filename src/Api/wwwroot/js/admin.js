@@ -67,7 +67,20 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 const fmtNum  = n => n != null ? Number(n).toLocaleString('pt-BR') : '—';
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    const box = modal.querySelector('.modal__box');
+    if (box && !box.querySelector('.modal__close')) {
+        const btn = document.createElement('button');
+        btn.className = 'modal__close';
+        btn.setAttribute('aria-label', 'Fechar');
+        btn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+        btn.addEventListener('click', () => closeModal(id));
+        box.insertAdjacentElement('afterbegin', btn);
+    }
+    modal.classList.add('open');
+}
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
 document.addEventListener('click', e => {
     if (e.target.classList.contains('modal')) e.target.classList.remove('open');

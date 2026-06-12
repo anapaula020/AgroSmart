@@ -206,15 +206,13 @@ public static class SeedDataService
             {
                 Id = Ids.AddrProp1, Cep = "77000-000",
                 Logradouro = "Rodovia TO-050, Km 38", Bairro = "Zona Rural",
-                Municipio = "Palmas", Uf = "TO", IbgeCode = 1721000,
-                Latitude = -10.184m, Longitude = -48.334m
+                Municipio = "Palmas", Uf = "TO", IbgeCode = 1721000
             },
             new Address
             {
                 Id = Ids.AddrProp2, Cep = "77500-000",
                 Logradouro = "Estrada Municipal, s/n", Bairro = "Zona Rural",
-                Municipio = "Porto Nacional", Uf = "TO", IbgeCode = 1718204,
-                Latitude = -10.706m, Longitude = -48.417m
+                Municipio = "Porto Nacional", Uf = "TO", IbgeCode = 1718204
             }
         );
 
