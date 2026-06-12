@@ -63,9 +63,10 @@
                 <span class="material-symbols-outlined">manage_accounts</span> Minha Conta
             </a>
             <span class="env-badge">@Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")</span>
-            <form method="post" action="/logout" style="margin-top:8px">
+            <form method="post" action="/logout" style="margin-top:8px" id="logoutForm">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="nav-link" style="width:100%;background:none;border:none;cursor:pointer;text-align:left">
+                <button type="submit" class="nav-link" style="width:100%;background:none;border:none;cursor:pointer;text-align:left"
+                        onclick="localStorage.removeItem('jwt')">
                     <span class="material-symbols-outlined">logout</span> Sair
                 </button>
             </form>

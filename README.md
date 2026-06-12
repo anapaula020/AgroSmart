@@ -1,86 +1,75 @@
 # AGROSMART
 
-Stack: **.NET 8** · **SQL Server 2022** · **Docker** · **EF Core** · **Identity + JWT** · **Swagger**
+Sistema de gestão agrícola com suporte a propriedades rurais, safras, estoque, clima, alertas e workspaces colaborativos.
 
-## Quick start
+Stack: **.NET 8** · **SQL Server 2022** · **Docker** · **EF Core** · **ASP.NET Identity + JWT** · **Swagger**
 
+---
+
+## Usuários de demonstração
+
+Os usuários abaixo são criados automaticamente ao subir o ambiente com `make up`:
+
+| Email | Senha | Role |
+|---|---|---|
+| `admin@admin.com` | `Admin@1234!` | Admin |
+| `gestor@demo.com` | `Demo@1234!` | Gestor |
+| `operador@demo.com` | `Demo@1234!` | Operador |
+
+---
+
+## Executar com Docker
+
+**Requisitos:** Docker e Docker Compose instalados.
 
 ```bash
+# 1. Crie o arquivo de variáveis de ambiente
 make env
-```
 
-```bash
+# 2. Suba os containers (API + SQL Server)
 make up
 ```
 
-Pronto. Sem configuração adicional.
+Pronto. O banco é criado e populado com dados de demonstração automaticamente.
 
-- **Swagger:** http://localhost:5000/swagger  
-- **Health:** http://localhost:5000/health  
-- **Dashboard:** http://localhost:5000
-
-## Credenciais padrão (dev)
-
-| | |
+| URL | Descrição |
 |---|---|
-| Admin | `admin@admin.com` / `Admin@1234!` |
-| Banco | `sa` / `Dev@1234!` |
+| http://localhost:5000 | Dashboard |
+| http://localhost:5000/swagger | Documentação da API |
+| http://localhost:5000/health | Health check |
 
-## Autenticação
+---
 
-```
+## Autenticação via API
+
+```bash
 POST /api/v1/auth/login
+Content-Type: application/json
+
 { "email": "admin@admin.com", "password": "Admin@1234!" }
 ```
 
-## Comandos
+O token JWT retornado deve ser enviado no header `Authorization: Bearer <token>`.  
+Para autenticação via API Key, use o header `X-Api-Key: <key>` (gerenciado na seção Workspaces).
+
+---
+
+## Comandos disponíveis
 
 | Comando | Descrição |
 |---|---|
-| `make env` | Cria variável de ambiente |
-| `make up` | Sobe ambiente dev |
-| `make down` | Para ambiente dev |
-| `make logs` | Logs da API |
-| `make prod-up` | Sobe produção |
-| `make shell-db` | sqlcmd no SQL Server |
-| `make health` | Testa /health |
+| `make env` | Cria `.env` a partir do `.env.example` |
+| `make up` | Sobe stack dev (build + detached) |
+| `make down` | Para e remove containers |
+| `make logs` | Exibe logs da API em tempo real |
+| `make prod-up` | Sobe stack de produção |
+| `make shell-db` | Abre `sqlcmd` no SQL Server |
+| `make health` | Checa endpoint `/health` |
+
+---
 
 ## Adicionar entidade nova
 
-1. Crie o model em `Models/Entities.cs`
+1. Crie o model em `Models/`
 2. Adicione `DbSet<T>` no `AppDbContext`
-<<<<<<< HEAD
-<<<<<<< HEAD
-3. `make down && make up` (o `EnsureCreated` recria o schema)
-=======
-3. `make down && docker volume rm dotnet-toolkit_sqlserver_data && make up`  
-   (o `EnsureCreated` recria o schema)
-
-## Estrutura
-
-```
-src/Api/
-├── Controllers/
-│   ├── AuthController.cs        # POST /auth/login, /auth/register, GET /auth/me
-│   ├── ProductsController.cs    # CRUD /products
-│   ├── CategoriesController.cs  # CRUD /categories
-│   ├── DashboardController.cs   # MVC view
-│   ├── AdminProductsController.cs
-│   └── AdminCategoriesController.cs
-├── Data/
-│   └── AppDbContext.cs          # IdentityDbContext + seed
-├── Middleware/
-│   └── ErrorHandlingMiddleware.cs
-├── Models/
-│   ├── Entities.cs
-│   ├── Dtos.cs
-│   └── AuthDtos.cs
-├── Services/
-│   └── TokenService.cs
-├── Views/                       # Razor (admin dashboard)
-└── wwwroot/                     # CSS + JS
-```
->>>>>>> 98bb587 (sistema)
-=======
-3. `make down && make up` (o `EnsureCreated` recria o schema)
->>>>>>> fc967f8 (Atualiza README)
+3. `make down && make up` — o `EnsureCreated` recria o schema
