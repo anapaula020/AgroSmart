@@ -13,6 +13,8 @@ public class AdminPagesController : Controller
     public IActionResult Weather()    { ViewData["Title"] = "Clima";        return View(); }
     public IActionResult Alerts()     { ViewData["Title"] = "Alertas";      return View(); }
 
+    public IActionResult Workspaces()  { ViewData["Title"] = "Workspaces";   return View(); }
+
     [Authorize(AuthenticationSchemes = "Identity.Application", Roles = Api.Roles.Admin)]
     public IActionResult Users()      { ViewData["Title"] = "Usuários";     return View(); }
 }

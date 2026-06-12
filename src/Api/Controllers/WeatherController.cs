@@ -28,7 +28,10 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     private async Task<bool> CanAccessProperty(Guid propertyId)
     {
         var p = await db.RuralProperties.FindAsync(propertyId);
-        return p is not null && (User.IsManager() || p.OwnerId == UserId);
+        if (p is null) return false;
+        if (User.IsManager() || p.OwnerId == UserId) return true;
+        if (p.WorkspaceId is null) return false;
+        return await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == p.WorkspaceId && m.UserId == UserId);
     }
 
     // ── Stations ──────────────────────────────────────────────────────────────
@@ -36,7 +39,13 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     public async Task<IActionResult> GetStations([FromQuery] Guid? propertyId = null)
     {
         var query = db.WeatherStations.Include(s => s.Property).AsQueryable();
-        if (!User.IsManager()) query = query.Where(s => s.Property!.OwnerId == UserId);
+        if (!User.IsManager())
+        {
+            var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
+            query = query.Where(s =>
+                s.Property!.OwnerId == UserId ||
+                (s.Property!.WorkspaceId != null && wsIds.Contains(s.Property!.WorkspaceId.Value)));
+        }
         if (propertyId.HasValue) query = query.Where(s => s.PropertyId == propertyId);
 
         return Ok(await query.OrderBy(s => s.Name).Select(s => new {

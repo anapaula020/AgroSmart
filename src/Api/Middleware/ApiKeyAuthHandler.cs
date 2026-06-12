@@ -34,6 +34,9 @@ public class ApiKeyAuthHandler(
             new("ApiKeyScope",            apiKey.Scope.ToString()),
         };
 
+        if (apiKey.WorkspaceId.HasValue)
+            claims.Add(new Claim("WorkspaceId", apiKey.WorkspaceId.Value.ToString()));
+
         // Busca roles do usuário para manter controle de acesso por role
         var userRoles = db.UserRoles
             .Where(ur => ur.UserId == apiKey.UserId)

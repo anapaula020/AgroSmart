@@ -28,4 +28,7 @@ public class ApiKey : BaseEntity
     public bool        IsActive    { get; set; } = true;
     public DateTime?   ExpiresAt   { get; set; }
     public DateTime?   LastUsedAt  { get; set; }
+    public Guid?       WorkspaceId { get; set; }
+
+    public Workspace?  Workspace   { get; set; }
 }

@@ -14,7 +14,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar__brand">
             <span class="material-symbols-outlined">eco</span>
-            <span class="brand-name">AgroAdmin</span>
+            <span class="brand-name">AgroSmart</span>
         </div>
         <nav class="sidebar__nav">
             @{
@@ -40,6 +40,9 @@
             <a class="nav-link @(ctrl == "AdminPages" ? "active" : "")" href="/admin/alerts">
                 <span class="material-symbols-outlined">notifications</span> Alertas
                 <span class="nav-badge" id="alertBadge" style="display:none"></span>
+            </a>
+            <a class="nav-link @(ctrl == "AdminPages" && ViewData["Title"]?.ToString() == "Workspaces" ? "active" : "")" href="/admin/workspaces">
+                <span class="material-symbols-outlined">group_work</span> Workspaces
             </a>
             @if (User.IsInRole("Admin")) {
             <a class="nav-link @(ctrl == "AdminPages" && ViewData["Title"]?.ToString() == "Usuários" ? "active" : "")" href="/admin/users">

@@ -1,13 +1,13 @@
 // ── Auth helper ───────────────────────────────────────────────────────────────
 const Auth = {
     init() {
-        // Sincroniza token do cookie para localStorage (após login via form)
         const cookieJwt = document.cookie.split(';').map(c => c.trim())
             .find(c => c.startsWith('jwt='));
         if (cookieJwt) {
             const token = decodeURIComponent(cookieJwt.split('=').slice(1).join('='));
-            if (token) localStorage.setItem('jwt', token);
+            if (token) { localStorage.setItem('jwt', token); return; }
         }
+        localStorage.removeItem('jwt');
     },
     getToken: () => localStorage.getItem('jwt'),
     headers() {

@@ -1,0 +1,382 @@
+@{
+    ViewData["Title"] = "Workspaces";
+}
+
+<div class="page-header">
+    <div></div>
+    <div class="page-header__actions">
+        <button class="btn btn--ghost" onclick="openJoinModal()">
+            <span class="material-symbols-outlined">group_add</span> Entrar por convite
+        </button>
+        <button class="btn btn--primary" onclick="openModal('modalNewWs')">
+            <span class="material-symbols-outlined">add</span> Novo Workspace
+        </button>
+    </div>
+</div>
+
+<div id="listWrap">
+    <div class="loading-state"><span class="material-symbols-outlined spin">sync</span> Carregando...</div>
+</div>
+
+<!-- Modal: novo workspace -->
+<div class="modal" id="modalNewWs">
+    <div class="modal__box">
+        <h2 class="modal__title">Novo Workspace</h2>
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Nome *</label>
+                <input class="input" id="wsName" placeholder="Ex: Grupo Agrícola Cerrado" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Descrição</label>
+                <input class="input" id="wsDesc" placeholder="Opcional" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createWorkspace()">Criar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewWs')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: entrar por convite -->
+<div class="modal" id="modalJoin">
+    <div class="modal__box">
+        <h2 class="modal__title">Entrar por Convite</h2>
+        <div class="form-group">
+            <label class="label">Código do Convite *</label>
+            <input class="input" id="joinToken" placeholder="Cole o token aqui..." />
+        </div>
+        <div id="joinHint" class="field-hint"></div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="joinWorkspace()">Entrar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalJoin')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: detalhe do workspace -->
+<div class="modal" id="modalDetail">
+    <div class="modal__box modal__box--structured" style="max-width:700px;width:95%">
+        <div class="modal__header">
+            <span class="material-symbols-outlined">group_work</span>
+            <h2 class="modal__title" id="detailTitle">Workspace</h2>
+            <button class="modal__close" onclick="closeModal('modalDetail')" aria-label="Fechar">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal__body" id="detailBody"></div>
+        <div class="modal__footer" id="detailFooter"></div>
+    </div>
+</div>
+
+<!-- Modal: convidar membro -->
+<div class="modal" id="modalInvite">
+    <div class="modal__box">
+        <h2 class="modal__title">Convidar Membro</h2>
+        <input type="hidden" id="inviteWsId" />
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Email *</label>
+                <input class="input" id="inviteEmail" type="email" placeholder="usuario@exemplo.com" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Role</label>
+                <select class="input" id="inviteRole">
+                    <option value="Consulta">Consulta – somente leitura</option>
+                    <option value="Operador" selected>Operador – cria e atualiza</option>
+                    <option value="Gestor">Gestor – acesso completo</option>
+                    <option value="Owner">Owner – controle total do workspace</option>
+                </select>
+            </div>
+        </div>
+        <div id="inviteHint" class="field-hint"></div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createInvite()">Gerar Convite</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalInvite')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: resultado do convite -->
+<div class="modal" id="modalToken">
+    <div class="modal__box">
+        <h2 class="modal__title">Convite Criado</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:var(--space-4)">
+            Compartilhe o token abaixo com o convidado. Válido por 7 dias.
+        </p>
+        <div class="form-group">
+            <label class="label">Token do Convite</label>
+            <div style="display:flex;gap:8px">
+                <input class="input" id="tokenDisplay" readonly style="font-family:var(--font-mono);font-size:13px" />
+                <button class="btn btn--ghost" style="white-space:nowrap" onclick="copyToken()">
+                    <span class="material-symbols-outlined" style="font-size:16px">content_copy</span>
+                </button>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="closeModal('modalToken');openModal('modalDetail')">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: alterar role de membro -->
+<div class="modal" id="modalMemberRole">
+    <div class="modal__box">
+        <h2 class="modal__title">Alterar Role</h2>
+        <input type="hidden" id="mrWsId" />
+        <input type="hidden" id="mrUserId" />
+        <div class="form-group">
+            <label class="label">Membro</label>
+            <p id="mrEmail" class="text-muted" style="margin:4px 0 var(--space-4)"></p>
+        </div>
+        <div class="form-group">
+            <label class="label">Novo Role</label>
+            <select class="input" id="mrRole">
+                <option value="Consulta">Consulta</option>
+                <option value="Operador">Operador</option>
+                <option value="Gestor">Gestor</option>
+                <option value="Owner">Owner</option>
+            </select>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="saveMemberRole()">Salvar</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalMemberRole')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let currentWs = null;
+const roleLabel = { Owner:'Owner', Gestor:'Gestor', Operador:'Operador', Consulta:'Consulta' };
+const roleBadge = { Owner:'badge--warn', Gestor:'badge--info', Operador:'badge--ok', Consulta:'badge--muted' };
+
+async function loadWorkspaces() {
+    const data = await Auth.json('/api/v1/workspaces');
+    const wrap = document.getElementById('listWrap');
+    if (!data || !data.length) {
+        wrap.innerHTML = `<div class="panel"><div class="empty">
+            <span class="material-symbols-outlined">group_work</span>
+            <p>Nenhum workspace encontrado. Crie um ou entre por convite.</p>
+        </div></div>`;
+        return;
+    }
+    wrap.innerHTML = `<div class="stat-grid">${data.map(ws => `
+        <div class="stat-card" style="cursor:pointer" onclick='openDetail("${ws.id}")'>
+            <div class="stat-card__icon stat-card__icon--accent">
+                <span class="material-symbols-outlined">group_work</span>
+            </div>
+            <div class="stat-card__body">
+                <span class="stat-card__value" style="font-size:15px">${esc(ws.name)}</span>
+                <span class="stat-card__label">${ws.memberCount} membro${ws.memberCount !== 1 ? 's' : ''}</span>
+                <span class="stat-card__sub">
+                    <span class="badge ${roleBadge[ws.myRole] ?? 'badge--muted'}">${ws.myRole}</span>
+                    ${ws.isOwner ? '<span class="badge badge--warn" style="margin-left:4px">Proprietário</span>' : ''}
+                </span>
+            </div>
+        </div>`).join('')}</div>`;
+}
+
+async function openDetail(id) {
+    currentWs = id;
+    const ws = await Auth.json(`/api/v1/workspaces/${id}`);
+    if (!ws) { toast('Erro ao carregar workspace', 'error'); return; }
+
+    document.getElementById('detailTitle').textContent = ws.name;
+
+    const body = document.getElementById('detailBody');
+    body.innerHTML = `
+        ${ws.description ? `<p style="color:var(--text-muted);font-size:13px">${esc(ws.description)}</p>` : ''}
+        <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3)">
+                <h3 style="font-size:14px;font-weight:600">Membros (${ws.members.length})</h3>
+                <button class="btn btn--sm btn--ghost" onclick="openInviteModal('${ws.id}')">
+                    <span class="material-symbols-outlined" style="font-size:14px">person_add</span> Convidar
+                </button>
+            </div>
+            <div class="panel__body panel__body--flush" style="padding:0">
+                <table class="table">
+                    <thead><tr><th>Email</th><th>Role</th><th class="th--right">Ações</th></tr></thead>
+                    <tbody>${ws.members.map(m => `<tr>
+                        <td>${esc(m.email ?? m.userId)}${m.isCurrent ? ' <span class="badge badge--muted" style="font-size:10px">você</span>' : ''}${m.isOwner ? ' <span class="badge badge--warn" style="font-size:10px">owner</span>' : ''}</td>
+                        <td><span class="badge ${roleBadge[m.role] ?? 'badge--muted'}">${m.role}</span></td>
+                        <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
+                            ${!m.isCurrent && !m.isOwner ? `
+                            <button class="btn btn--sm btn--ghost" onclick="openMemberRole('${ws.id}','${m.userId}','${esc(m.email ?? m.userId)}','${m.role}')">
+                                <span class="material-symbols-outlined" style="font-size:14px">swap_horiz</span>
+                            </button>
+                            <button class="btn btn--sm btn--danger" onclick="removeMember('${ws.id}','${m.userId}')">
+                                <span class="material-symbols-outlined" style="font-size:14px">remove_circle</span>
+                            </button>` : ''}
+                        </td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>
+        </div>
+        ${ws.invites.length ? `
+        <div>
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:var(--space-3)">Convites Pendentes</h3>
+            <div class="panel__body panel__body--flush" style="padding:0">
+                <table class="table">
+                    <thead><tr><th>Email</th><th>Role</th><th>Token</th><th class="th--right">Ações</th></tr></thead>
+                    <tbody>${ws.invites.map(i => `<tr>
+                        <td>${esc(i.invitedEmail)}</td>
+                        <td><span class="badge ${roleBadge[i.role] ?? 'badge--muted'}">${i.role}</span></td>
+                        <td><code style="font-size:11px;color:var(--text-muted)">${i.token.slice(0,12)}…</code>
+                            <button class="btn btn--sm btn--ghost" style="padding:2px 6px" onclick="showFullToken('${i.token}')">ver</button>
+                        </td>
+                        <td class="td--right">
+                            <button class="btn btn--sm btn--danger" onclick="cancelInvite('${ws.id}','${i.id}')">
+                                <span class="material-symbols-outlined" style="font-size:14px">cancel</span>
+                            </button>
+                        </td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>
+        </div>` : ''}
+        ${ws.properties.length ? `
+        <div>
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:var(--space-3)">Propriedades Vinculadas (${ws.properties.length})</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+                ${ws.properties.map(p => `<span class="badge badge--muted"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle">landscape</span> ${esc(p.name)} · ${fmtNum(p.totalAreaHa)} ha</span>`).join('')}
+            </div>
+        </div>` : ''}
+    `;
+
+    const footer = document.getElementById('detailFooter');
+    footer.innerHTML = `<button class="btn btn--ghost" onclick="closeModal('modalDetail')">Fechar</button>`;
+
+    closeModal('modalInvite');
+    openModal('modalDetail');
+}
+
+async function createWorkspace() {
+    const name = document.getElementById('wsName').value.trim();
+    const desc = document.getElementById('wsDesc').value.trim();
+    if (!name) { toast('Nome é obrigatório.', 'error'); return; }
+
+    const res = await Auth.fetch('/api/v1/workspaces', {
+        method: 'POST', body: JSON.stringify({ name, description: desc || null })
+    });
+    if (res?.ok) {
+        toast('Workspace criado!');
+        closeModal('modalNewWs');
+        document.getElementById('wsName').value = '';
+        document.getElementById('wsDesc').value = '';
+        await loadWorkspaces();
+    } else {
+        const e = await res?.json();
+        toast(e?.message ?? 'Erro ao criar workspace', 'error');
+    }
+}
+
+function openJoinModal() {
+    document.getElementById('joinToken').value = '';
+    document.getElementById('joinHint').textContent = '';
+    openModal('modalJoin');
+}
+
+async function joinWorkspace() {
+    const token = document.getElementById('joinToken').value.trim();
+    const hint  = document.getElementById('joinHint');
+    if (!token) { hint.textContent = 'Token é obrigatório.'; hint.className = 'field-hint field-hint--err'; return; }
+
+    const res = await Auth.fetch('/api/v1/workspaces/join', {
+        method: 'POST', body: JSON.stringify({ token })
+    });
+    const data = res ? await res.json() : null;
+    if (res?.ok) {
+        toast(`Você entrou no workspace "${data.workspaceName}"!`);
+        closeModal('modalJoin');
+        await loadWorkspaces();
+    } else {
+        hint.textContent = data?.message ?? 'Token inválido ou expirado.';
+        hint.className = 'field-hint field-hint--err';
+    }
+}
+
+function openInviteModal(wsId) {
+    document.getElementById('inviteWsId').value = wsId;
+    document.getElementById('inviteEmail').value = '';
+    document.getElementById('inviteHint').textContent = '';
+    closeModal('modalDetail');
+    openModal('modalInvite');
+}
+
+async function createInvite() {
+    const wsId  = document.getElementById('inviteWsId').value;
+    const email = document.getElementById('inviteEmail').value.trim();
+    const role  = document.getElementById('inviteRole').value;
+    const hint  = document.getElementById('inviteHint');
+    if (!email) { hint.textContent = 'Email é obrigatório.'; hint.className = 'field-hint field-hint--err'; return; }
+
+    const res = await Auth.fetch(`/api/v1/workspaces/${wsId}/invites`, {
+        method: 'POST', body: JSON.stringify({ email, role })
+    });
+    const data = res ? await res.json() : null;
+    if (res?.ok) {
+        closeModal('modalInvite');
+        document.getElementById('tokenDisplay').value = data.token;
+        openModal('modalToken');
+        await loadWorkspaces();
+    } else {
+        hint.textContent = data?.message ?? 'Erro ao criar convite.';
+        hint.className = 'field-hint field-hint--err';
+    }
+}
+
+function showFullToken(token) {
+    document.getElementById('tokenDisplay').value = token;
+    openModal('modalToken');
+}
+
+function copyToken() {
+    const input = document.getElementById('tokenDisplay');
+    navigator.clipboard.writeText(input.value).then(() => toast('Token copiado!'));
+}
+
+async function cancelInvite(wsId, inviteId) {
+    if (!confirm('Cancelar este convite?')) return;
+    const res = await Auth.fetch(`/api/v1/workspaces/${wsId}/invites/${inviteId}`, { method: 'DELETE' });
+    if (res?.ok) { toast('Convite cancelado.'); await openDetail(wsId); }
+    else toast('Erro ao cancelar.', 'error');
+}
+
+function openMemberRole(wsId, userId, email, currentRole) {
+    document.getElementById('mrWsId').value   = wsId;
+    document.getElementById('mrUserId').value = userId;
+    document.getElementById('mrEmail').textContent = email;
+    document.getElementById('mrRole').value   = currentRole;
+    openModal('modalMemberRole');
+}
+
+async function saveMemberRole() {
+    const wsId   = document.getElementById('mrWsId').value;
+    const userId = document.getElementById('mrUserId').value;
+    const role   = document.getElementById('mrRole').value;
+    const res = await Auth.fetch(`/api/v1/workspaces/${wsId}/members/${userId}/role`, {
+        method: 'PUT', body: JSON.stringify({ role })
+    });
+    if (res?.ok) {
+        toast('Role alterado!');
+        closeModal('modalMemberRole');
+        await openDetail(wsId);
+    } else {
+        const e = await res?.json();
+        toast(e?.message ?? 'Erro.', 'error');
+    }
+}
+
+async function removeMember(wsId, userId) {
+    if (!confirm('Remover este membro do workspace?')) return;
+    const res = await Auth.fetch(`/api/v1/workspaces/${wsId}/members/${userId}`, { method: 'DELETE' });
+    if (res?.ok) { toast('Membro removido.'); await openDetail(wsId); }
+    else { const e = await res?.json(); toast(e?.message ?? 'Erro.', 'error'); }
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+loadWorkspaces();
+</script>
+}

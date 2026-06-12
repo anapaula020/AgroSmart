@@ -38,11 +38,17 @@ public class AlertsController(AppDbContext db) : ControllerBase
     {
         var query = db.Alerts.AsQueryable();
 
-        // Usuário vê apenas alertas seus ou das suas propriedades
+        // Usuário vê alertas seus, das suas propriedades ou workspaces onde é membro
         if (!User.IsManager())
+        {
+            var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
             query = query.Where(a =>
                 a.CreatedByUserId == UserId ||
-                (a.PropertyId != null && db.RuralProperties.Any(p => p.Id == a.PropertyId && p.OwnerId == UserId)));
+                (a.PropertyId != null && db.RuralProperties.Any(p =>
+                    p.Id == a.PropertyId && (
+                        p.OwnerId == UserId ||
+                        (p.WorkspaceId != null && wsIds.Contains(p.WorkspaceId.Value))))));
+        }
 
         if (unreadOnly == true)  query = query.Where(a => !a.IsRead);
         if (severity.HasValue)   query = query.Where(a => a.Severity == severity);

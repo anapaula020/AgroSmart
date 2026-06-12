@@ -47,6 +47,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<WeatherReading>  WeatherReadings  => Set<WeatherReading>();
     public DbSet<WeatherForecast> WeatherForecasts => Set<WeatherForecast>();
 
+    // Workspaces
+    public DbSet<Workspace>       Workspaces       => Set<Workspace>();
+    public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
+    public DbSet<WorkspaceInvite> WorkspaceInvites => Set<WorkspaceInvite>();
+
     protected override void OnModelCreating(ModelBuilder m)
     {
         base.OnModelCreating(m);
@@ -83,6 +88,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(p => p.TotalAreaHa).HasColumnType("decimal(12,4)");
             e.Property(p => p.VegetationAreaHa).HasColumnType("decimal(12,4)");
             e.HasOne(p => p.Address).WithMany().HasForeignKey(p => p.AddressId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.Workspace).WithMany(w => w.Properties).HasForeignKey(p => p.WorkspaceId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
         });
 
         // ── SoilType / IrrigationType ─────────────────────────────────────────
@@ -156,6 +162,35 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(h => h.QuantityUsed).HasColumnType("decimal(12,4)");
             e.HasOne(h => h.Harvest).WithMany(hv => hv.HarvestInputs).HasForeignKey(h => h.HarvestId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(h => h.StockMovement).WithOne(s => s.HarvestInput).HasForeignKey<HarvestInput>(h => h.StockMovementId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── Workspace ─────────────────────────────────────────────────────────
+        m.Entity<Workspace>(e => {
+            GuidPk(e);
+            e.Property(w => w.Name).HasMaxLength(200).IsRequired();
+            e.Property(w => w.Slug).HasMaxLength(100).IsRequired();
+            e.HasIndex(w => w.Slug).IsUnique();
+        });
+
+        m.Entity<WorkspaceMember>(e => {
+            GuidPk(e);
+            e.Property(wm => wm.Role).HasConversion<string>();
+            e.HasOne(wm => wm.Workspace).WithMany(w => w.Members).HasForeignKey(wm => wm.WorkspaceId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(wm => new { wm.WorkspaceId, wm.UserId }).IsUnique();
+        });
+
+        m.Entity<WorkspaceInvite>(e => {
+            GuidPk(e);
+            e.Property(wi => wi.Role).HasConversion<string>();
+            e.Property(wi => wi.Status).HasConversion<string>();
+            e.Property(wi => wi.InvitedEmail).HasMaxLength(256).IsRequired();
+            e.Property(wi => wi.Token).HasMaxLength(64).IsRequired();
+            e.HasIndex(wi => wi.Token).IsUnique();
+            e.HasOne(wi => wi.Workspace).WithMany(w => w.Invites).HasForeignKey(wi => wi.WorkspaceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        m.Entity<ApiKey>(e => {
+            e.HasOne(k => k.Workspace).WithMany(w => w.ApiKeys).HasForeignKey(k => k.WorkspaceId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
         });
 
         // ── Uf / Municipio (IDs IBGE - não são auto-incremento) ──────────────

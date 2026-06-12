@@ -39,6 +39,29 @@ public class HarvestsController(AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
+    private async Task<bool> CanAccessHarvest(Harvest h)
+    {
+        if (User.IsManager()) return true;
+        var prop = h.Field?.Property;
+        if (prop is null) return false;
+        if (prop.OwnerId == UserId) return true;
+        if (prop.WorkspaceId is null) return false;
+        return await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == prop.WorkspaceId && m.UserId == UserId);
+    }
+
+    private Task<List<Guid>> MyWorkspaceIds() =>
+        db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
+
+    private async Task<bool> CanAccessField(Field f)
+    {
+        if (User.IsManager()) return true;
+        var prop = f.Property;
+        if (prop is null) return false;
+        if (prop.OwnerId == UserId) return true;
+        if (prop.WorkspaceId is null) return false;
+        return await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == prop.WorkspaceId && m.UserId == UserId);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid? fieldId = null,
@@ -50,7 +73,12 @@ public class HarvestsController(AppDbContext db) : ControllerBase
             .AsQueryable();
 
         if (!User.IsManager())
-            query = query.Where(h => h.Field!.Property!.OwnerId == UserId);
+        {
+            var wsIds = await MyWorkspaceIds();
+            query = query.Where(h =>
+                h.Field!.Property!.OwnerId == UserId ||
+                (h.Field!.Property!.WorkspaceId != null && wsIds.Contains(h.Field!.Property!.WorkspaceId.Value)));
+        }
         if (fieldId.HasValue)
             query = query.Where(h => h.FieldId == fieldId);
         if (status.HasValue)
@@ -78,7 +106,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (h is null) return NotFound();
-        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!await CanAccessHarvest(h)) return Forbid();
 
         return Ok(new {
             h.Id, h.Name, h.Status, h.PlantingDate, h.ExpectedHarvestDate,
@@ -99,7 +127,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
         if (!User.CanWrite()) return Forbid();
         var field = await db.Fields.Include(f => f.Property).FirstOrDefaultAsync(f => f.Id == req.FieldId);
         if (field is null) return BadRequest(new ErrorResponse("Field not found"));
-        if (!User.IsManager() && field.Property!.OwnerId != UserId) return Forbid();
+        if (!await CanAccessField(field)) return Forbid();
 
         if (!await db.Cultures.AnyAsync(c => c.Id == req.CultureId))
             return BadRequest(new ErrorResponse("Culture not found"));
@@ -126,7 +154,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (h is null) return NotFound();
-        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!await CanAccessHarvest(h)) return Forbid();
 
         if (req.Name is not null)                    h.Name                = req.Name;
         if (req.ExpectedHarvestDate.HasValue)        h.ExpectedHarvestDate = req.ExpectedHarvestDate.Value;
@@ -148,7 +176,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
             .Include(x => x.HarvestInputs)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (h is null) return NotFound();
-        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!await CanAccessHarvest(h)) return Forbid();
         if (h.HarvestInputs.Any()) return BadRequest(new ErrorResponse("Harvest has applied inputs, remove them first"));
 
         db.Harvests.Remove(h);
@@ -163,7 +191,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .FirstOrDefaultAsync(x => x.Id == harvestId);
         if (h is null) return NotFound();
-        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!await CanAccessHarvest(h)) return Forbid();
 
         var records = await db.ProductivityRecords
             .Where(p => p.HarvestId == harvestId)
@@ -179,7 +207,7 @@ public class HarvestsController(AppDbContext db) : ControllerBase
         var h = await db.Harvests.Include(x => x.Field).ThenInclude(f => f!.Property)
             .FirstOrDefaultAsync(x => x.Id == harvestId);
         if (h is null) return NotFound();
-        if (!User.IsManager() && h.Field!.Property!.OwnerId != UserId) return Forbid();
+        if (!await CanAccessHarvest(h)) return Forbid();
 
         var record = new ProductivityRecord
         {

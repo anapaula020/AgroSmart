@@ -42,11 +42,11 @@
 
 @section Scripts {
 <script>
-// Se o cookie jwt foi setado pelo servidor, salva no localStorage também
-const jwt = document.cookie.split(';').find(c => c.trim().startsWith('jwt='));
-if (jwt) {
-    const token = jwt.split('=')[1];
-    localStorage.setItem('jwt', token);
+localStorage.removeItem('jwt');
+const _jwtCookie = document.cookie.split(';').find(c => c.trim().startsWith('jwt='));
+if (_jwtCookie) {
+    const token = decodeURIComponent(_jwtCookie.split('=').slice(1).join('='));
+    if (token) localStorage.setItem('jwt', token);
 }
 </script>
 }

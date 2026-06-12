@@ -41,11 +41,22 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
+    private async Task<bool> CanAccessProperty(RuralProperty p)
+    {
+        if (User.IsManager() || p.OwnerId == UserId) return true;
+        if (p.WorkspaceId is null) return false;
+        return await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == p.WorkspaceId && m.UserId == UserId);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var query = db.RuralProperties.Include(p => p.Address).Include(p => p.Fields).AsQueryable();
-        if (!User.IsManager()) query = query.Where(p => p.OwnerId == UserId);
+        if (!User.IsManager())
+        {
+            var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
+            query = query.Where(p => p.OwnerId == UserId || (p.WorkspaceId != null && wsIds.Contains(p.WorkspaceId.Value)));
+        }
 
         var result = await query.OrderBy(p => p.Name).Select(p => new {
             p.Id, p.Name, p.CarNumber, p.TotalAreaHa, p.VegetationAreaHa,
@@ -69,10 +80,10 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
 
         return Ok(new {
-            p.Id, p.Name, p.CarNumber, p.TotalAreaHa, p.VegetationAreaHa, p.OwnerId, p.CreatedAt,
+            p.Id, p.Name, p.CarNumber, p.TotalAreaHa, p.VegetationAreaHa, p.OwnerId, p.WorkspaceId, p.CreatedAt,
             Address = p.Address is null ? null : new {
                 p.Address.Id, p.Address.Cep, p.Address.Logradouro, p.Address.Complemento,
                 p.Address.Bairro, p.Address.Municipio, p.Address.Uf,
@@ -127,7 +138,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
         if (!User.CanWrite()) return Forbid();
         var p = await db.RuralProperties.FindAsync(id);
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
 
         if (req.Name is not null)             p.Name             = req.Name;
         if (req.CarNumber is not null)        p.CarNumber        = req.CarNumber;
@@ -145,7 +156,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
         if (!User.IsManager()) return Forbid();
         var p = await db.RuralProperties.Include(x => x.Fields).FirstOrDefaultAsync(x => x.Id == id);
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
         if (p.Fields.Any()) return BadRequest(new ErrorResponse("Remove all fields before deleting the property"));
 
         db.RuralProperties.Remove(p);
@@ -159,7 +170,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     {
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
 
         var fields = await db.Fields
             .Include(f => f.SoilType).Include(f => f.IrrigationType)
@@ -180,7 +191,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
         if (!User.CanWrite()) return Forbid();
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
 
         if (!await db.SoilTypes.AnyAsync(s => s.Id == req.SoilTypeId))
             return BadRequest(new ErrorResponse("SoilType not found"));
@@ -207,7 +218,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
         if (!User.CanWrite()) return Forbid();
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
 
         var field = await db.Fields.FirstOrDefaultAsync(f => f.Id == fieldId && f.PropertyId == propertyId);
         if (field is null) return NotFound();
@@ -229,7 +240,7 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
         if (!User.IsManager()) return Forbid();
         var p = await db.RuralProperties.FindAsync(propertyId);
         if (p is null) return NotFound();
-        if (!User.IsManager() && p.OwnerId != UserId) return Forbid();
+        if (!await CanAccessProperty(p)) return Forbid();
 
         var field = await db.Fields.Include(f => f.Harvests)
             .FirstOrDefaultAsync(f => f.Id == fieldId && f.PropertyId == propertyId);

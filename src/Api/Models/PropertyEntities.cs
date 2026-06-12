@@ -22,7 +22,10 @@ public class RuralProperty : BaseEntity
     public decimal TotalAreaHa      { get; set; }
     public decimal VegetationAreaHa { get; set; }
 
+    public Guid?      WorkspaceId { get; set; }
+
     public Address?              Address        { get; set; }
+    public Workspace?            Workspace      { get; set; }
     public ICollection<Field>    Fields         { get; set; } = [];
     public ICollection<StockItem> StockItems    { get; set; } = [];
 }
