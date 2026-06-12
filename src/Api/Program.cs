@@ -43,38 +43,34 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// ── JWT ───────────────────────────────────────────────────────────────────────
+// ── JWT + ApiKey — JWT como scheme padrão (sobrescreve cookie do Identity) ────
+// AddIdentity define DefaultAuthenticateScheme = "Identity.Application" (cookie).
+// Sobrescrevemos aqui para que [Authorize] nas API controllers use JWT por padrão,
+// retornando 401 em vez de redirecionar para /Account/Login (que causaria 404).
 builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer           = true,
-        ValidateAudience         = true,
-        ValidateLifetime         = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer              = builder.Configuration["Jwt:Issuer"],
-        ValidAudience            = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey         = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
-    };
-})
-.AddScheme<AuthenticationSchemeOptions, Api.Middleware.ApiKeyAuthHandler>(
-    Api.Middleware.ApiKeyAuthHandler.SchemeName, _ => { });
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme    = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultScheme             = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"],
+            ValidAudience            = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey         = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    })
+    .AddScheme<AuthenticationSchemeOptions, Api.Middleware.ApiKeyAuthHandler>(
+        Api.Middleware.ApiKeyAuthHandler.SchemeName, _ => { });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .AddAuthenticationSchemes(
-            Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme,
-            Api.Middleware.ApiKeyAuthHandler.SchemeName)
-        .Build();
-});
+builder.Services.AddAuthorization();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<ApiKeyService>();
 builder.Services.AddScoped<IbgeService>();
@@ -86,21 +82,31 @@ builder.Services.AddHttpClient("openweather", c =>
     c.BaseAddress = new Uri(builder.Configuration["OpenWeather:BaseUrl"] ?? "https://api.openweathermap.org/data/2.5/");
     c.Timeout = TimeSpan.FromSeconds(10);
 });
-builder.Services.AddHttpClient("ibge", c =>
-{
-    c.BaseAddress = new Uri(builder.Configuration["Ibge:BaseUrl"] ?? "https://servicodados.ibge.gov.br/api/v1/");
-    c.Timeout = TimeSpan.FromSeconds(10);
-});
+
 
 // ── Cookie auth for MVC pages ────────────────────────────────────────────────
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.LoginPath  = "/login";
-    options.LogoutPath = "/logout";
+    options.LoginPath        = "/login";
+    options.LogoutPath       = "/logout";
     options.AccessDeniedPath = "/login";
     options.Cookie.HttpOnly  = true;
     options.SlidingExpiration = true;
     options.ExpireTimeSpan   = TimeSpan.FromHours(8);
+    // Não redireciona para login em requests que esperam JSON (ajax/api)
+    options.Events.OnRedirectToLogin = ctx =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/account") &&
+            (ctx.Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+             (ctx.Request.ContentType?.Contains("application/json") == true) ||
+             ctx.Request.Headers["Accept"].ToString().Contains("application/json")))
+        {
+            ctx.Response.StatusCode = 401;
+            return Task.CompletedTask;
+        }
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    };
 });
 
 // ── Controllers + Razor Views ────────────────────────────────────────────────
@@ -185,8 +191,8 @@ app.UseStaticFiles();
 app.UseCors("Default");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}");
 app.MapControllers();
+app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}");
 app.MapHealthChecks("/health");
 
 app.Run();
@@ -207,8 +213,6 @@ static async Task InitializeDatabaseAsync(IServiceProvider services)
 
             Log.Information("DB init attempt {Attempt}/{Max}...", attempt, maxAttempts);
 
-            // Dev: EnsureCreated recria o schema sem migrations (use make down + make up para resetar)
-            // Prod: Migrate aplica migrations versionadas
             var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
             if (env.IsDevelopment())
                 await db.Database.EnsureCreatedAsync();
@@ -228,9 +232,14 @@ static async Task InitializeDatabaseAsync(IServiceProvider services)
                 Log.Information("Default admin created: {Email}", adminEmail);
             }
 
-            // Seed localidades IBGE (só roda se tabela estiver vazia)
             var ibgeSvc = scope.ServiceProvider.GetRequiredService<Api.Services.IbgeService>();
             await ibgeSvc.SeedLocalidadesAsync(db);
+
+            var seedEnabled = env.IsDevelopment() ||
+                              string.Equals(Environment.GetEnvironmentVariable("SEED_DATA"), "true",
+                                            StringComparison.OrdinalIgnoreCase);
+            if (seedEnabled)
+                await Api.Data.SeedDataService.SeedAsync(db, userManager);
 
             Log.Information("Database initialized successfully");
             return;

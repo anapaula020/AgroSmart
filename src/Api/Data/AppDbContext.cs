@@ -159,5 +159,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.HasOne(h => h.Harvest).WithMany(hv => hv.HarvestInputs).HasForeignKey(h => h.HarvestId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(h => h.StockMovement).WithOne(s => s.HarvestInput).HasForeignKey<HarvestInput>(h => h.StockMovementId).OnDelete(DeleteBehavior.Restrict);
         });
+
+        // ── Uf / Municipio (IDs IBGE — não são auto-incremento) ──────────────
+        m.Entity<Uf>(e => {
+            e.Property(u => u.Id).ValueGeneratedNever();
+            e.Property(u => u.Sigla).HasMaxLength(2).IsRequired();
+            e.Property(u => u.Nome).HasMaxLength(100).IsRequired();
+        });
+
+        m.Entity<Municipio>(e => {
+            e.Property(mu => mu.Id).ValueGeneratedNever();
+            e.Property(mu => mu.Nome).HasMaxLength(200).IsRequired();
+            e.HasOne(mu => mu.Uf).WithMany(u => u.Municipios)
+                .HasForeignKey(mu => mu.UfId).OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }
