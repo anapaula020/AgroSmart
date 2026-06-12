@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Api.Models;
 
@@ -9,7 +10,7 @@ public class OpenWeatherService(IConfiguration config, IHttpClientFactory httpFa
 
     private HttpClient Client => httpFactory.CreateClient("openweather");
 
-    private string ApiKey => config["OpenWeather:ApiKey"] ?? "";
+    private string ApiKey => (config["OpenWeather:ApiKey"] ?? "").Trim();
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 
@@ -20,9 +21,18 @@ public class OpenWeatherService(IConfiguration config, IHttpClientFactory httpFa
 
         try
         {
-            var url  = $"weather?lat={lat}&lon={lon}&appid={ApiKey}&units=metric&lang=pt_br";
-            var resp = await Client.GetAsync(url);
-            resp.EnsureSuccessStatusCode();
+            var latStr = lat.ToString(CultureInfo.InvariantCulture);
+            var lonStr = lon.ToString(CultureInfo.InvariantCulture);
+            var url    = $"weather?lat={latStr}&lon={lonStr}&appid={ApiKey}&units=metric&lang=pt_br";
+            var resp   = await Client.GetAsync(url);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                logger.LogWarning("OpenWeather current HTTP {Status}: {Body}",
+                    (int)resp.StatusCode, body.Length > 300 ? body[..300] : body);
+                return null;
+            }
 
             using var doc  = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             var root = doc.RootElement;
@@ -40,9 +50,14 @@ public class OpenWeatherService(IConfiguration config, IHttpClientFactory httpFa
                 PressureHpa   = GetDecimal(root, "main", "pressure"),
             };
         }
+        catch (TaskCanceledException)
+        {
+            logger.LogWarning("OpenWeather current timed out after {Timeout}s", Client.Timeout.TotalSeconds);
+            return null;
+        }
         catch (Exception ex)
         {
-            logger.LogWarning("OpenWeather current failed: {Msg}", ex.Message);
+            logger.LogWarning("OpenWeather current failed: {Type} — {Msg}", ex.GetType().Name, ex.Message);
             return null;
         }
     }
@@ -54,9 +69,18 @@ public class OpenWeatherService(IConfiguration config, IHttpClientFactory httpFa
 
         try
         {
-            var url  = $"forecast?lat={lat}&lon={lon}&appid={ApiKey}&units=metric&lang=pt_br&cnt=40";
-            var resp = await Client.GetAsync(url);
-            resp.EnsureSuccessStatusCode();
+            var latStr = lat.ToString(CultureInfo.InvariantCulture);
+            var lonStr = lon.ToString(CultureInfo.InvariantCulture);
+            var url    = $"forecast?lat={latStr}&lon={lonStr}&appid={ApiKey}&units=metric&lang=pt_br&cnt=40";
+            var resp   = await Client.GetAsync(url);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                logger.LogWarning("OpenWeather forecast HTTP {Status}: {Body}",
+                    (int)resp.StatusCode, body.Length > 300 ? body[..300] : body);
+                return [];
+            }
 
             using var doc  = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             var list = doc.RootElement.GetProperty("list");
@@ -99,9 +123,14 @@ public class OpenWeatherService(IConfiguration config, IHttpClientFactory httpFa
                 Source       = "openweathermap"
             }).OrderBy(f => f.ForecastDate).ToList();
         }
+        catch (TaskCanceledException)
+        {
+            logger.LogWarning("OpenWeather forecast timed out after {Timeout}s", Client.Timeout.TotalSeconds);
+            return [];
+        }
         catch (Exception ex)
         {
-            logger.LogWarning("OpenWeather forecast failed: {Msg}", ex.Message);
+            logger.LogWarning("OpenWeather forecast failed: {Type} — {Msg}", ex.GetType().Name, ex.Message);
             return [];
         }
     }

@@ -90,7 +90,9 @@ builder.Services.AddScoped<OpenWeatherService>();
 // ── HttpClients ───────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient("openweather", c =>
 {
-    c.BaseAddress = new Uri(builder.Configuration["OpenWeather:BaseUrl"] ?? "https://api.openweathermap.org/data/2.5/");
+    var owBaseUrl = builder.Configuration["OpenWeather:BaseUrl"] ?? "https://api.openweathermap.org/data/2.5/";
+    if (!owBaseUrl.EndsWith('/')) owBaseUrl += '/';
+    c.BaseAddress = new Uri(owBaseUrl);
     c.Timeout = TimeSpan.FromSeconds(10);
 });
 

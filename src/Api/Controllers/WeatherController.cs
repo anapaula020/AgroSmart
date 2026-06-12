@@ -149,9 +149,20 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
         if (!weather.IsConfigured)
             return BadRequest(new ErrorResponse("OpenWeather API key not configured. Set OPENWEATHER_API_KEY in .env"));
 
+        var lastReadingAt = await db.WeatherReadings
+            .Where(r => r.StationId == stationId)
+            .OrderByDescending(r => r.RecordedAt)
+            .Select(r => (DateTime?)r.RecordedAt)
+            .FirstOrDefaultAsync();
+        if (lastReadingAt.HasValue && (DateTime.UtcNow - lastReadingAt.Value).TotalMinutes < 10)
+        {
+            var ago = (int)(DateTime.UtcNow - lastReadingAt.Value).TotalMinutes;
+            return StatusCode(429, new ErrorResponse($"Leitura atualizada há {ago}min. Aguarde 10min entre buscas."));
+        }
+
         var reading = await weather.FetchCurrentAsync(stationId, s.Latitude, s.Longitude);
         if (reading is null)
-            return StatusCode(502, new ErrorResponse("Failed to fetch data from OpenWeather"));
+            return StatusCode(503, new ErrorResponse("Falha ao buscar dados da OpenWeather. Verifique os logs e a validade da API key."));
 
         db.WeatherReadings.Add(reading);
         await db.SaveChangesAsync();
@@ -210,6 +221,7 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
     [HttpPost("stations/{stationId:guid}/forecast/fetch")]
     public async Task<IActionResult> FetchForecast(Guid stationId)
     {
+        if (!User.CanWrite()) return Forbid();
         var s = await db.WeatherStations.Include(x => x.Property).FirstOrDefaultAsync(x => x.Id == stationId);
         if (s is null) return NotFound();
         if (!User.IsManager() && s.Property!.OwnerId != UserId) return Forbid();
@@ -217,9 +229,17 @@ public class WeatherController(AppDbContext db, OpenWeatherService weather) : Co
         if (!weather.IsConfigured)
             return BadRequest(new ErrorResponse("OpenWeather API key not configured. Set OPENWEATHER_API_KEY in .env"));
 
+        var lastForecastAt = await db.WeatherForecasts
+            .Where(f => f.StationId == stationId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => (DateTime?)f.CreatedAt)
+            .FirstOrDefaultAsync();
+        if (lastForecastAt.HasValue && (DateTime.UtcNow - lastForecastAt.Value).TotalHours < 1)
+            return StatusCode(429, new ErrorResponse("Previsão atualizada recentemente. Aguarde 1h entre buscas."));
+
         var forecasts = await weather.FetchForecastAsync(stationId, s.Latitude, s.Longitude);
         if (forecasts.Count == 0)
-            return StatusCode(502, new ErrorResponse("Failed to fetch forecast from OpenWeather"));
+            return StatusCode(503, new ErrorResponse("Falha ao buscar previsão da OpenWeather. Verifique os logs e a validade da API key."));
 
         // Remove previsões futuras antigas e insere as novas
         var old = db.WeatherForecasts.Where(f => f.StationId == stationId && f.ForecastDate >= DateTime.UtcNow.Date);

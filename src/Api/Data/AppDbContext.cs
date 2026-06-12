@@ -178,6 +178,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .IsRequired();
         });
 
+        // ── WeatherStation ────────────────────────────────────────────────────
+        m.Entity<WeatherStation>(e => {
+            GuidPk(e);
+            e.Property(s => s.Latitude).HasColumnType("decimal(9,6)");
+            e.Property(s => s.Longitude).HasColumnType("decimal(9,6)");
+            e.HasOne(s => s.Property).WithMany().HasForeignKey(s => s.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── WeatherReading ────────────────────────────────────────────────────
+        m.Entity<WeatherReading>(e => {
+            GuidPk(e);
+            e.Property(r => r.Temperature).HasColumnType("decimal(5,2)");
+            e.Property(r => r.Humidity).HasColumnType("decimal(5,2)");
+            e.Property(r => r.Rainfall).HasColumnType("decimal(8,2)");
+            e.Property(r => r.WindSpeedKmh).HasColumnType("decimal(6,2)");
+            e.Property(r => r.PressureHpa).HasColumnType("decimal(7,2)");
+            e.Property(r => r.SolarRadiation).HasColumnType("decimal(8,2)");
+            e.HasOne(r => r.Station).WithMany(s => s.Readings).HasForeignKey(r => r.StationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── WeatherForecast ───────────────────────────────────────────────────
+        m.Entity<WeatherForecast>(e => {
+            GuidPk(e);
+            e.Property(f => f.TempMin).HasColumnType("decimal(5,2)");
+            e.Property(f => f.TempMax).HasColumnType("decimal(5,2)");
+            e.Property(f => f.RainfallMm).HasColumnType("decimal(8,2)");
+            e.Property(f => f.HumidityPct).HasColumnType("decimal(5,2)");
+            e.HasOne(f => f.Station).WithMany(s => s.Forecasts).HasForeignKey(f => f.StationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ── Uf / Municipio (IDs IBGE - não são auto-incremento) ──────────────
         m.Entity<Uf>(e => {
             e.Property(u => u.Id).ValueGeneratedNever();
