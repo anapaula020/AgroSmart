@@ -26,30 +26,27 @@ public class ApiKeyAuthHandler(
         if (apiKey is null)
             return AuthenticateResult.Fail("Invalid or expired API key");
 
-        // Monta claims equivalentes ao JWT
+        // API key pertence ao workspace — derivamos identidade do dono do workspace
+        var workspace = await db.Workspaces.FindAsync(apiKey.WorkspaceId);
+        if (workspace is null)
+            return AuthenticateResult.Fail("Workspace for this API key not found");
+
+        // Autentica como o dono do workspace para que verificações OwnerId == UserId
+        // continuem funcionando para dados vinculados ao workspace
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, apiKey.UserId),
-            new("ApiKeyId",               apiKey.Id.ToString()),
-            new("ApiKeyScope",            apiKey.Scope.ToString()),
+            new(ClaimTypes.NameIdentifier, workspace.OwnerId),
+            new("WorkspaceId",             apiKey.WorkspaceId.ToString()),
+            new("ApiKeyId",                apiKey.Id.ToString()),
+            new("ApiKeyScope",             apiKey.Scope.ToString()),
         };
 
-        if (apiKey.WorkspaceId.HasValue)
-            claims.Add(new Claim("WorkspaceId", apiKey.WorkspaceId.Value.ToString()));
-
-        // Busca roles do usuário para manter controle de acesso por role
-        var userRoles = db.UserRoles
-            .Where(ur => ur.UserId == apiKey.UserId)
-            .Join(db.Roles, ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
-            .ToList();
-
-        // Restringe roles baseado no scope da key
+        // Mapeia scope para roles — nenhuma key concede role de sistema Admin
         var effectiveRoles = apiKey.Scope switch
         {
-            Api.Models.ApiKeyScope.Admin     => userRoles,
-            Api.Models.ApiKeyScope.ReadWrite => userRoles.Where(r => r != "Admin").ToList(),
-            Api.Models.ApiKeyScope.ReadOnly  => [],  // sem roles = sem acesso a [Authorize(Roles="Admin")]
-            _ => []
+            Api.Models.ApiKeyScope.Admin     => new[] { Roles.Gestor, Roles.Operador },
+            Api.Models.ApiKeyScope.ReadWrite => new[] { Roles.Operador },
+            _                                => Array.Empty<string>()
         };
 
         claims.AddRange(effectiveRoles.Select(r => new Claim(ClaimTypes.Role, r)));

@@ -80,78 +80,7 @@ public class UserAccountController(
             : new { ok = false, error = string.Join(", ", result.Errors.Select(e => e.Description)) });
     }
 
-    [HttpGet("apikeys")]
-    [Authorize(AuthenticationSchemes = JsonSchemes)]
-    public async Task<IActionResult> GetApiKeys()
-    {
-        var keys = await db.ApiKeys
-            .Where(k => k.UserId == UserId)
-            .OrderByDescending(k => k.CreatedAt)
-            .Select(k => new {
-                k.Id, k.Name, k.Prefix, k.Scope,
-                k.IsActive, k.ExpiresAt, k.LastUsedAt, k.CreatedAt
-            })
-            .ToListAsync();
-        return Json(keys);
-    }
-
-    [HttpPost("apikeys")]
-    [Authorize(AuthenticationSchemes = JsonSchemes)]
-    [IgnoreAntiforgeryToken]
-    public async Task<IActionResult> CreateApiKey([FromBody] CreateApiKeyDto req)
-    {
-        if (string.IsNullOrWhiteSpace(req.Name) || req.Name.Length < 2)
-            return Json(new { ok = false, error = "Nome deve ter ao menos 2 caracteres." });
-
-        var (rawKey, prefix, hash) = ApiKeyService.GenerateKey();
-
-        DateTime? expires = null;
-        if (!string.IsNullOrEmpty(req.ExpiresAt) && DateTime.TryParse(req.ExpiresAt, out var parsed))
-            expires = parsed.ToUniversalTime();
-
-        var key = new ApiKey
-        {
-            UserId    = UserId,
-            Name      = req.Name,
-            KeyHash   = hash,
-            Prefix    = prefix,
-            Scope     = req.Scope,
-            ExpiresAt = expires
-        };
-        db.ApiKeys.Add(key);
-        await db.SaveChangesAsync();
-
-        return Json(new { ok = true, id = key.Id, name = key.Name, prefix = key.Prefix, scope = key.Scope, rawKey });
-    }
-
-    [HttpPost("apikeys/{id:guid}/deactivate")]
-    [Authorize(AuthenticationSchemes = JsonSchemes)]
-    [IgnoreAntiforgeryToken]
-    public async Task<IActionResult> DeactivateApiKey(Guid id)
-    {
-        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && k.UserId == UserId);
-        if (key is null) return Json(new { ok = false, error = "Chave não encontrada." });
-
-        key.IsActive  = false;
-        key.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-        return Json(new { ok = true });
-    }
-
-    [HttpPost("apikeys/{id:guid}/delete")]
-    [Authorize(AuthenticationSchemes = JsonSchemes)]
-    [IgnoreAntiforgeryToken]
-    public async Task<IActionResult> DeleteApiKey(Guid id)
-    {
-        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && k.UserId == UserId);
-        if (key is null) return Json(new { ok = false, error = "Chave não encontrada." });
-
-        db.ApiKeys.Remove(key);
-        await db.SaveChangesAsync();
-        return Json(new { ok = true });
-    }
 }
 
 public record UpdateEmailDto(string NewEmail);
 public record ChangePasswordDto(string CurrentPassword, string NewPassword);
-public record CreateApiKeyDto(string Name, ApiKeyScope Scope = ApiKeyScope.ReadOnly, string? ExpiresAt = null);

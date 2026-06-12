@@ -172,7 +172,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         });
 
         m.Entity<ApiKey>(e => {
-            e.HasOne(k => k.Workspace).WithMany(w => w.ApiKeys).HasForeignKey(k => k.WorkspaceId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+            e.HasOne(k => k.Workspace).WithMany(w => w.ApiKeys)
+                .HasForeignKey(k => k.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
         });
 
         // ── Uf / Municipio (IDs IBGE - não são auto-incremento) ──────────────

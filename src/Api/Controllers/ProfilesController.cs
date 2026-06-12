@@ -116,59 +116,115 @@ public class ProfilesController(AppDbContext db) : ControllerBase
     }
 }
 
-// ── API Keys ──────────────────────────────────────────────────────────────────
+// ── API Keys (workspace-scoped) ───────────────────────────────────────────────
 [ApiController]
 [Route("api/v1/apikeys")]
 [Produces("application/json")]
 [Authorize]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class ApiKeysController(AppDbContext db, ApiKeyService apiKeyService) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private bool IsAdmin  => User.IsInRole("Admin");
+    private bool IsAdmin  => User.IsInRole(Roles.Admin);
+
+    private async Task<bool> CanManageWorkspace(Guid workspaceId)
+    {
+        if (IsAdmin) return true;
+        var ws = await db.Workspaces.FindAsync(workspaceId);
+        if (ws is null) return false;
+        if (ws.OwnerId == UserId) return true;
+        return await db.WorkspaceMembers.AnyAsync(m =>
+            m.WorkspaceId == workspaceId && m.UserId == UserId &&
+            (m.Role == WorkspaceRole.Owner || m.Role == WorkspaceRole.Gestor));
+    }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] Guid? workspaceId = null)
     {
-        var query = db.ApiKeys.AsQueryable();
-        if (!IsAdmin) query = query.Where(k => k.UserId == UserId);
+        IQueryable<ApiKey> query;
+
+        if (IsAdmin)
+        {
+            query = db.ApiKeys.Include(k => k.Workspace);
+            if (workspaceId.HasValue)
+                query = query.Where(k => k.WorkspaceId == workspaceId.Value);
+        }
+        else
+        {
+            var managedIds = await db.WorkspaceMembers
+                .Where(m => m.UserId == UserId &&
+                    (m.Role == WorkspaceRole.Owner || m.Role == WorkspaceRole.Gestor))
+                .Select(m => m.WorkspaceId)
+                .ToListAsync();
+
+            var ownedIds = await db.Workspaces
+                .Where(w => w.OwnerId == UserId)
+                .Select(w => w.Id)
+                .ToListAsync();
+
+            var accessIds = managedIds.Union(ownedIds).ToList();
+
+            if (workspaceId.HasValue)
+            {
+                if (!accessIds.Contains(workspaceId.Value)) return Forbid();
+                query = db.ApiKeys.Include(k => k.Workspace)
+                    .Where(k => k.WorkspaceId == workspaceId.Value);
+            }
+            else
+            {
+                query = db.ApiKeys.Include(k => k.Workspace)
+                    .Where(k => accessIds.Contains(k.WorkspaceId));
+            }
+        }
 
         return Ok(await query.OrderByDescending(k => k.CreatedAt).Select(k => new {
             k.Id, k.Name, k.Prefix, k.Scope, k.IsActive,
-            k.ExpiresAt, k.LastUsedAt, k.CreatedAt
+            k.ExpiresAt, k.LastUsedAt, k.CreatedAt,
+            k.CreatedByUserId,
+            WorkspaceId   = k.WorkspaceId,
+            WorkspaceName = k.Workspace!.Name
         }).ToListAsync());
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateApiKeyRequest req)
     {
+        if (!await CanManageWorkspace(req.WorkspaceId))
+            return Forbid();
+
         var (rawKey, prefix, hash) = ApiKeyService.GenerateKey();
 
         var key = new ApiKey
         {
-            UserId    = UserId,
-            Name      = req.Name,
-            KeyHash   = hash,
-            Prefix    = prefix,
-            Scope     = req.Scope,
-            ExpiresAt = req.ExpiresAt
+            WorkspaceId     = req.WorkspaceId,
+            CreatedByUserId = UserId,
+            Name            = req.Name,
+            KeyHash         = hash,
+            Prefix          = prefix,
+            Scope           = req.Scope,
+            ExpiresAt       = req.ExpiresAt
         };
         db.ApiKeys.Add(key);
         await db.SaveChangesAsync();
 
-        // Retorna o valor raw APENAS na criação - não é armazenado
         return CreatedAtAction(nameof(GetAll), new {
             key.Id, key.Name, key.Prefix, key.Scope, key.ExpiresAt,
-            RawKey = rawKey,
-            Warning = "Store this key safely. It will not be shown again."
+            WorkspaceId = key.WorkspaceId,
+            RawKey      = rawKey,
+            Warning     = "Store this key safely. It will not be shown again."
         });
     }
 
     [HttpPatch("{id:guid}/deactivate")]
     public async Task<IActionResult> Deactivate(Guid id)
     {
-        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && (IsAdmin || k.UserId == UserId));
+        var key = await db.ApiKeys.FindAsync(id);
         if (key is null) return NotFound();
-        key.IsActive = false; key.UpdatedAt = DateTime.UtcNow;
+        if (!await CanManageWorkspace(key.WorkspaceId)) return Forbid();
+
+        key.IsActive  = false;
+        key.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Ok(new { key.Id, key.IsActive });
     }
@@ -176,8 +232,10 @@ public class ApiKeysController(AppDbContext db, ApiKeyService apiKeyService) : C
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && (IsAdmin || k.UserId == UserId));
+        var key = await db.ApiKeys.FindAsync(id);
         if (key is null) return NotFound();
+        if (!await CanManageWorkspace(key.WorkspaceId)) return Forbid();
+
         db.ApiKeys.Remove(key);
         await db.SaveChangesAsync();
         return NoContent();
@@ -185,6 +243,7 @@ public class ApiKeysController(AppDbContext db, ApiKeyService apiKeyService) : C
 }
 
 public record CreateApiKeyRequest(
+    [Required] Guid WorkspaceId,
     [Required, StringLength(100, MinimumLength = 2)] string Name,
     ApiKeyScope Scope = ApiKeyScope.ReadOnly,
     DateTime? ExpiresAt = null

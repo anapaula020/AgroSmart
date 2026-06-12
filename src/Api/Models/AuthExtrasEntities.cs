@@ -20,15 +20,15 @@ public class UserProfile : BaseEntity
 
 public class ApiKey : BaseEntity
 {
-    public string      UserId      { get; set; } = string.Empty;
-    public string      Name        { get; set; } = string.Empty;
-    public string      KeyHash     { get; set; } = string.Empty; // SHA-256 do valor real
-    public string      Prefix      { get; set; } = string.Empty; // primeiros 8 chars (exibição)
-    public ApiKeyScope Scope       { get; set; } = ApiKeyScope.ReadOnly;
-    public bool        IsActive    { get; set; } = true;
-    public DateTime?   ExpiresAt   { get; set; }
-    public DateTime?   LastUsedAt  { get; set; }
-    public Guid?       WorkspaceId { get; set; }
+    public Guid        WorkspaceId     { get; set; }              // workspace dono da key (obrigatório)
+    public string?     CreatedByUserId { get; set; }              // quem criou (auditoria, opcional)
+    public string      Name            { get; set; } = string.Empty;
+    public string      KeyHash         { get; set; } = string.Empty; // SHA-256 do valor real
+    public string      Prefix          { get; set; } = string.Empty; // primeiros 8 chars (exibição)
+    public ApiKeyScope Scope           { get; set; } = ApiKeyScope.ReadOnly;
+    public bool        IsActive        { get; set; } = true;
+    public DateTime?   ExpiresAt       { get; set; }
+    public DateTime?   LastUsedAt      { get; set; }
 
-    public Workspace?  Workspace   { get; set; }
+    public Workspace?  Workspace       { get; set; }
 }

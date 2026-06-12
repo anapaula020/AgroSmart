@@ -82,10 +82,10 @@
                     </div>
                 </div>
                 <div class="security-row">
-                    <span class="material-symbols-outlined security-icon">key</span>
+                    <span class="material-symbols-outlined security-icon">api</span>
                     <div>
                         <strong>API Keys</strong>
-                        <p class="text-muted">Gerencie suas chaves de acesso abaixo.</p>
+                        <p class="text-muted">Gerencie chaves de acesso em <a href="/admin/workspaces" style="color:var(--accent)">Workspaces</a>.</p>
                     </div>
                 </div>
                 <div class="security-row">
@@ -104,122 +104,9 @@
 
     </div><!-- /profile-grid -->
 
-    <!-- ── API Keys ─────────────────────────────────────────────────── -->
-    <div class="panel api-keys-panel">
-        <div class="panel__header">
-            <span class="material-symbols-outlined">api</span>
-            <h3 class="panel__title">API Keys</h3>
-            <button class="btn btn--accent btn--sm panel__header-action" onclick="openCreateModal()">
-                <span class="material-symbols-outlined">add</span>
-                Nova chave
-            </button>
-        </div>
-        <div class="panel__body">
-            <p class="text-muted api-keys-desc">
-                Use chaves de API para autenticar chamadas externas.
-                O valor completo é exibido <strong>uma única vez</strong> no momento da criação.
-            </p>
-            <div class="table-wrap">
-                <table class="data-table" id="keysTable">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Prefixo</th>
-                            <th>Escopo</th>
-                            <th>Status</th>
-                            <th>Último uso</th>
-                            <th>Expira em</th>
-                            <th>Criada em</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="keysBody">
-                        <tr id="keysLoading">
-                            <td colspan="8" class="table-empty">
-                                <span class="material-symbols-outlined spin">progress_activity</span>
-                                Carregando chaves…
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
 </div><!-- /profile-page -->
 
-<!-- ── Modal: criar chave ──────────────────────────────────────────────── -->
-<div class="modal" id="createModal">
-    <div class="modal__box modal__box--structured" onclick="event.stopPropagation()">
-        <div class="modal__header">
-            <h4 class="modal__title">
-                <span class="material-symbols-outlined">add_circle</span>
-                Nova API Key
-            </h4>
-            <button class="modal__close" onclick="closeModal('createModal')">
-                <span class="material-symbols-outlined">close</span>
-            </button>
-        </div>
-        <div class="modal__body">
-            <div class="field-group">
-                <label class="field-label">Nome da chave <span class="req">*</span></label>
-                <input type="text" class="field-input" id="keyName"
-                       placeholder="Ex: Integração ERP, App Mobile…" maxlength="100" />
-            </div>
-            <div class="field-group">
-                <label class="field-label">Escopo</label>
-                <select class="field-input" id="keyScope">
-                    <option value="ReadOnly">ReadOnly - somente leitura</option>
-                    <option value="ReadWrite">ReadWrite - leitura e escrita</option>
-                    <option value="Admin">Admin - acesso total</option>
-                </select>
-            </div>
-            <div class="field-group">
-                <label class="field-label">Expira em <span class="field-optional">(opcional)</span></label>
-                <input type="datetime-local" class="field-input" id="keyExpires" />
-            </div>
-            <div class="field-hint" id="createHint"></div>
-        </div>
-        <div class="modal__footer">
-            <button class="btn btn--ghost" onclick="closeModal('createModal')">Cancelar</button>
-            <button class="btn btn--accent" onclick="createKey()">
-                <span class="material-symbols-outlined">add</span>
-                Gerar chave
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ── Modal: exibir chave criada ──────────────────────────────────────── -->
-<div class="modal" id="revealModal">
-    <div class="modal__box modal__box--structured" onclick="event.stopPropagation()">
-        <div class="modal__header">
-            <h4 class="modal__title">
-                <span class="material-symbols-outlined" style="color:var(--accent)">key</span>
-                Chave gerada!
-            </h4>
-            <button class="modal__close" onclick="closeModal('revealModal')">
-                <span class="material-symbols-outlined">close</span>
-            </button>
-        </div>
-        <div class="modal__body">
-            <div class="key-reveal-banner">
-                <span class="material-symbols-outlined">warning</span>
-                Copie agora. Esta chave <strong>não será exibida novamente.</strong>
-            </div>
-            <label class="field-label">Sua chave de API</label>
-            <div class="key-copy-row">
-                <code class="key-value" id="revealKey"></code>
-                <button class="btn btn--ghost btn--sm" onclick="copyKey()">
-                    <span class="material-symbols-outlined" id="copyIcon">content_copy</span>
-                </button>
-            </div>
-        </div>
-        <div class="modal__footer">
-            <button class="btn btn--accent" onclick="closeModal('revealModal')">Entendi, já copiei</button>
-        </div>
-    </div>
-</div>
 
 @section Scripts {
 <script>
@@ -287,111 +174,10 @@
         }
     }
 
-    // ── Load API keys ─────────────────────────────────────────────────────────
-    async function loadKeys() {
-        const tbody = document.getElementById('keysBody');
-        const keys = await get('/account/apikeys');
-
-        if (keys === null) {
-            tbody.innerHTML = `<tr><td colspan="8" class="table-empty">Erro ao carregar chaves.</td></tr>`;
-            return;
-        }
-
-        if (!Array.isArray(keys) || !keys.length) {
-            tbody.innerHTML = `<tr><td colspan="8" class="table-empty">
-                <span class="material-symbols-outlined">key_off</span>
-                Nenhuma chave criada ainda.
-            </td></tr>`;
-            return;
-        }
-
-        const scopeLabel = { ReadOnly: 'ReadOnly', ReadWrite: 'ReadWrite', Admin: 'Admin' };
-        const scopeClass = { ReadOnly: 'badge--muted', ReadWrite: 'badge--info', Admin: 'badge--warn' };
-
-        tbody.innerHTML = keys.map(k => `
-        <tr data-id="${k.id}" class="${k.isActive ? '' : 'row--disabled'}">
-            <td class="td-name">${esc(k.name)}</td>
-            <td><code class="mono">${esc(k.prefix)}…</code></td>
-            <td><span class="badge ${scopeClass[k.scope] ?? ''}">${scopeLabel[k.scope] ?? k.scope}</span></td>
-            <td>
-                ${k.isActive
-                    ? '<span class="badge badge--ok">Ativa</span>'
-                    : '<span class="badge badge--danger">Inativa</span>'}
-            </td>
-            <td class="text-muted">${k.lastUsedAt ? fmtDate(k.lastUsedAt) : '-'}</td>
-            <td class="text-muted">${k.expiresAt  ? fmtDate(k.expiresAt)  : 'Sem expiração'}</td>
-            <td class="text-muted">${fmtDate(k.createdAt)}</td>
-            <td class="td-actions">
-                ${k.isActive ? `<button class="btn-icon" title="Desativar" onclick="deactivateKey('${k.id}', this)">
-                    <span class="material-symbols-outlined">block</span>
-                </button>` : ''}
-                <button class="btn-icon btn-icon--danger" title="Excluir" onclick="deleteKey('${k.id}', this)">
-                    <span class="material-symbols-outlined">delete</span>
-                </button>
-            </td>
-        </tr>`).join('');
-    }
-
-    // ── Deactivate key ────────────────────────────────────────────────────────
-    async function deactivateKey(id, btn) {
-        if (!confirm('Desativar esta chave?')) return;
-        const res = await post(`/account/apikeys/${id}/deactivate`, {});
-        if (res.ok) loadKeys();
-        else alert(res.error);
-    }
-
-    // ── Delete key ────────────────────────────────────────────────────────────
-    async function deleteKey(id, btn) {
-        if (!confirm('Excluir permanentemente esta chave?')) return;
-        const res = await post(`/account/apikeys/${id}/delete`, {});
-        if (res.ok) loadKeys();
-        else alert(res.error);
-    }
-
-    // ── Create key modal ──────────────────────────────────────────────────────
-    function openCreateModal() {
-        document.getElementById('keyName').value = '';
-        document.getElementById('keyScope').value = 'ReadOnly';
-        document.getElementById('keyExpires').value = '';
-        document.getElementById('createHint').textContent = '';
-        openModal('createModal');
-        setTimeout(() => document.getElementById('keyName').focus(), 50);
-    }
-
-    async function createKey() {
-        const name      = document.getElementById('keyName').value.trim();
-        const scope     = document.getElementById('keyScope').value;
-        const expiresAt = document.getElementById('keyExpires').value || null;
-        const hintEl    = document.getElementById('createHint');
-
-        if (name.length < 2) { hintEl.textContent = 'Nome muito curto.'; hintEl.className = 'field-hint field-hint--err'; return; }
-
-        const res = await post('/account/apikeys', { name, scope, expiresAt });
-        if (res.ok) {
-            closeModal('createModal');
-            document.getElementById('revealKey').textContent = res.rawKey;
-            document.getElementById('copyIcon').textContent = 'content_copy';
-            openModal('revealModal');
-            loadKeys();
-        } else {
-            hintEl.textContent = res.error ?? 'Erro ao criar chave.';
-            hintEl.className = 'field-hint field-hint--err';
-        }
-    }
-
-    // ── Reveal modal ──────────────────────────────────────────────────────────
-    async function copyKey() {
-        const key = document.getElementById('revealKey').textContent;
-        await navigator.clipboard.writeText(key);
-        document.getElementById('copyIcon').textContent = 'check';
-        setTimeout(() => document.getElementById('copyIcon').textContent = 'content_copy', 2000);
-    }
-
-    // ── Utils - esc() local; fmtDate() herdado do admin.js ──────────────────
+    // ── Utils ─────────────────────────────────────────────────────────────────
     function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    // ── Init ──────────────────────────────────────────────────────────────────
-    loadKeys();
+    // ── Init ─────────────────────────────────────────────────────────────────
 
     // Keyboard shortcut: Esc closes modals
     document.addEventListener('keydown', e => {

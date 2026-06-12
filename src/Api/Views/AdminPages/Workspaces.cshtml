@@ -146,6 +146,63 @@
     </div>
 </div>
 
+<!-- Modal: nova API Key -->
+<div class="modal" id="modalNewKey">
+    <div class="modal__box">
+        <h2 class="modal__title">Nova API Key</h2>
+        <input type="hidden" id="newKeyWsId" />
+        <div class="form-grid">
+            <div class="form-group form-group--full">
+                <label class="label">Nome da chave *</label>
+                <input class="input" id="newKeyName" placeholder="Ex: Integração ERP, App Mobile…" maxlength="100" />
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Escopo</label>
+                <select class="input" id="newKeyScope">
+                    <option value="ReadOnly">ReadOnly – somente leitura</option>
+                    <option value="ReadWrite">ReadWrite – leitura e escrita</option>
+                    <option value="Admin">Admin – acesso total ao workspace</option>
+                </select>
+            </div>
+            <div class="form-group form-group--full">
+                <label class="label">Expira em <span style="color:var(--text-muted)">(opcional)</span></label>
+                <input type="datetime-local" class="input" id="newKeyExpires" />
+            </div>
+        </div>
+        <div id="newKeyHint" class="field-hint"></div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="createWorkspaceKey()">Gerar chave</button>
+            <button class="btn btn--ghost" onclick="closeModal('modalNewKey');openModal('modalDetail')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: exibir chave gerada -->
+<div class="modal" id="modalRevealKey">
+    <div class="modal__box">
+        <h2 class="modal__title">
+            <span class="material-symbols-outlined" style="color:var(--accent);vertical-align:middle;font-size:20px">key</span>
+            Chave Gerada!
+        </h2>
+        <div style="background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.4);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;display:flex;gap:8px;align-items:center">
+            <span class="material-symbols-outlined" style="color:#f0ad4e;flex-shrink:0">warning</span>
+            Copie agora. Esta chave <strong>não será exibida novamente.</strong>
+        </div>
+        <div class="form-group">
+            <label class="label">Sua chave de API</label>
+            <div style="display:flex;gap:8px">
+                <input class="input" id="revealKeyVal" readonly style="font-family:var(--font-mono,monospace);font-size:12px" />
+                <button class="btn btn--ghost" onclick="copyWsKey()" title="Copiar">
+                    <span class="material-symbols-outlined" id="revealCopyIcon" style="font-size:16px">content_copy</span>
+                </button>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn--primary" onclick="closeModal('modalRevealKey');openModal('modalDetail')">Entendi, já copiei</button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 let currentWs = null;
@@ -242,6 +299,18 @@ async function openDetail(id) {
                 ${ws.properties.map(p => `<span class="badge badge--muted"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:middle">landscape</span> ${esc(p.name)} · ${fmtNum(p.totalAreaHa)} ha</span>`).join('')}
             </div>
         </div>` : ''}
+        <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3)">
+                <h3 style="font-size:14px;font-weight:600">
+                    <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;color:var(--text-muted)">api</span>
+                    API Keys
+                </h3>
+                <button class="btn btn--sm btn--ghost" onclick="openNewKeyModal('${ws.id}')">
+                    <span class="material-symbols-outlined" style="font-size:14px">add</span> Nova Key
+                </button>
+            </div>
+            <div id="wsKeysBody"><span style="color:var(--text-muted);font-size:12px">Carregando…</span></div>
+        </div>
     `;
 
     const footer = document.getElementById('detailFooter');
@@ -249,6 +318,7 @@ async function openDetail(id) {
 
     closeModal('modalInvite');
     openModal('modalDetail');
+    loadWorkspaceKeys(id);
 }
 
 async function createWorkspace() {
@@ -373,6 +443,103 @@ async function removeMember(wsId, userId) {
     const res = await Auth.fetch(`/api/v1/workspaces/${wsId}/members/${userId}`, { method: 'DELETE' });
     if (res?.ok) { toast('Membro removido.'); await openDetail(wsId); }
     else { const e = await res?.json(); toast(e?.message ?? 'Erro.', 'error'); }
+}
+
+// ── API Keys ──────────────────────────────────────────────────────────────
+function openNewKeyModal(wsId) {
+    document.getElementById('newKeyWsId').value   = wsId;
+    document.getElementById('newKeyName').value   = '';
+    document.getElementById('newKeyScope').value  = 'ReadOnly';
+    document.getElementById('newKeyExpires').value = '';
+    document.getElementById('newKeyHint').textContent = '';
+    closeModal('modalDetail');
+    openModal('modalNewKey');
+    setTimeout(() => document.getElementById('newKeyName').focus(), 50);
+}
+
+async function createWorkspaceKey() {
+    const wsId      = document.getElementById('newKeyWsId').value;
+    const name      = document.getElementById('newKeyName').value.trim();
+    const scope     = document.getElementById('newKeyScope').value;
+    const expiresAt = document.getElementById('newKeyExpires').value || null;
+    const hint      = document.getElementById('newKeyHint');
+
+    if (name.length < 2) {
+        hint.textContent = 'Nome deve ter ao menos 2 caracteres.';
+        hint.className   = 'field-hint field-hint--err';
+        return;
+    }
+
+    const res  = await Auth.fetch('/api/v1/apikeys', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId: wsId, name, scope, expiresAt })
+    });
+    const data = res ? await res.json() : null;
+
+    if (res?.ok) {
+        closeModal('modalNewKey');
+        document.getElementById('revealKeyVal').value              = data.rawKey;
+        document.getElementById('revealCopyIcon').textContent      = 'content_copy';
+        openModal('modalRevealKey');
+    } else {
+        hint.textContent = data?.message ?? data?.title ?? 'Erro ao criar chave.';
+        hint.className   = 'field-hint field-hint--err';
+    }
+}
+
+async function loadWorkspaceKeys(wsId) {
+    const wrap = document.getElementById('wsKeysBody');
+    if (!wrap) return;
+    const keys = await Auth.json(`/api/v1/apikeys?workspaceId=${wsId}`);
+    if (!keys) {
+        wrap.innerHTML = `<p style="color:var(--text-muted);font-size:12px">Erro ao carregar chaves.</p>`;
+        return;
+    }
+    if (!keys.length) {
+        wrap.innerHTML = `<p style="color:var(--text-muted);font-size:12px">Nenhuma API Key criada para este workspace.</p>`;
+        return;
+    }
+    const scopeClass = { ReadOnly: 'badge--muted', ReadWrite: 'badge--info', Admin: 'badge--warn' };
+    wrap.innerHTML = `<table class="table" style="font-size:12px">
+        <thead><tr><th>Nome</th><th>Prefixo</th><th>Escopo</th><th>Status</th><th>Criada em</th><th class="th--right">Ações</th></tr></thead>
+        <tbody>${keys.map(k => `<tr>
+            <td>${esc(k.name)}</td>
+            <td><code style="font-size:11px">${esc(k.prefix)}…</code></td>
+            <td><span class="badge ${scopeClass[k.scope] ?? 'badge--muted'}">${k.scope}</span></td>
+            <td>${k.isActive ? '<span class="badge badge--ok">Ativa</span>' : '<span class="badge badge--danger">Inativa</span>'}</td>
+            <td style="color:var(--text-muted)">${fmtDate(k.createdAt)}</td>
+            <td class="td--right" style="display:flex;gap:4px;justify-content:flex-end">
+                ${k.isActive ? `<button class="btn btn--sm btn--ghost" title="Desativar" onclick="deactivateWsKey('${k.id}','${wsId}')">
+                    <span class="material-symbols-outlined" style="font-size:14px">block</span>
+                </button>` : ''}
+                <button class="btn btn--sm btn--danger" title="Excluir" onclick="deleteWsKey('${k.id}','${wsId}')">
+                    <span class="material-symbols-outlined" style="font-size:14px">delete</span>
+                </button>
+            </td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+async function deactivateWsKey(keyId, wsId) {
+    if (!confirm('Desativar esta API Key?')) return;
+    const res = await Auth.fetch(`/api/v1/apikeys/${keyId}/deactivate`, { method: 'PATCH' });
+    if (res?.ok) { toast('Chave desativada.'); loadWorkspaceKeys(wsId); }
+    else toast('Erro ao desativar chave.', 'error');
+}
+
+async function deleteWsKey(keyId, wsId) {
+    if (!confirm('Excluir permanentemente esta API Key?')) return;
+    const res = await Auth.fetch(`/api/v1/apikeys/${keyId}`, { method: 'DELETE' });
+    if (res?.ok) { toast('Chave excluída.'); loadWorkspaceKeys(wsId); }
+    else toast('Erro ao excluir chave.', 'error');
+}
+
+function copyWsKey() {
+    const val = document.getElementById('revealKeyVal').value;
+    navigator.clipboard.writeText(val).then(() => {
+        document.getElementById('revealCopyIcon').textContent = 'check';
+        setTimeout(() => document.getElementById('revealCopyIcon').textContent = 'content_copy', 2000);
+    });
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
