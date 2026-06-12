@@ -51,10 +51,16 @@ public class RuralPropertiesController(AppDbContext db, Api.Services.IbgeService
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] Guid? workspaceId = null)
     {
         var query = db.RuralProperties.Include(p => p.Address).Include(p => p.Fields).AsQueryable();
-        if (!User.IsManager())
+        if (workspaceId.HasValue)
+        {
+            if (!User.IsManager() && !await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == UserId))
+                return Forbid();
+            query = query.Where(p => p.WorkspaceId == workspaceId);
+        }
+        else if (!User.IsManager())
         {
             var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
             query = query.Where(p => p.OwnerId == UserId || (p.WorkspaceId != null && wsIds.Contains(p.WorkspaceId.Value)));

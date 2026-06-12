@@ -44,14 +44,20 @@ public class StockController(AppDbContext db) : ControllerBase
 
     // ── Stock Items ───────────────────────────────────────────────────────────
     [HttpGet("items")]
-    public async Task<IActionResult> GetItems([FromQuery] Guid? propertyId = null)
+    public async Task<IActionResult> GetItems([FromQuery] Guid? propertyId = null, [FromQuery] Guid? workspaceId = null)
     {
         var query = db.StockItems
             .Include(s => s.Property)
             .Include(s => s.InputProduct)
             .AsQueryable();
 
-        if (!User.IsManager())
+        if (workspaceId.HasValue)
+        {
+            if (!User.IsManager() && !await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == UserId))
+                return Forbid();
+            query = query.Where(s => s.Property!.WorkspaceId == workspaceId);
+        }
+        else if (!User.IsManager())
         {
             var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
             query = query.Where(s =>

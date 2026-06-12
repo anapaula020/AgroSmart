@@ -35,13 +35,20 @@ public class AlertsController(AppDbContext db) : ControllerBase
         [FromQuery] AlertSeverity? severity = null,
         [FromQuery] AlertType? type    = null,
         [FromQuery] Guid? propertyId   = null,
+        [FromQuery] Guid? workspaceId  = null,
         [FromQuery] int page     = 1,
         [FromQuery] int pageSize = 20)
     {
         var query = db.Alerts.AsQueryable();
 
-        // Usuário vê alertas seus, das suas propriedades ou workspaces onde é membro
-        if (!User.IsManager())
+        if (workspaceId.HasValue)
+        {
+            if (!User.IsManager() && !await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == UserId))
+                return Forbid();
+            query = query.Where(a => a.PropertyId != null &&
+                db.RuralProperties.Any(p => p.Id == a.PropertyId && p.WorkspaceId == workspaceId));
+        }
+        else if (!User.IsManager())
         {
             var wsIds = await db.WorkspaceMembers.Where(m => m.UserId == UserId).Select(m => m.WorkspaceId).ToListAsync();
             query = query.Where(a =>

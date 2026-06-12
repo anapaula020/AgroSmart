@@ -67,14 +67,21 @@ public class HarvestsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid? fieldId = null,
-        [FromQuery] HarvestStatus? status = null)
+        [FromQuery] HarvestStatus? status = null,
+        [FromQuery] Guid? workspaceId = null)
     {
         var query = db.Harvests
             .Include(h => h.Field).ThenInclude(f => f!.Property)
             .Include(h => h.Culture)
             .AsQueryable();
 
-        if (!User.IsManager())
+        if (workspaceId.HasValue)
+        {
+            if (!User.IsManager() && !await db.WorkspaceMembers.AnyAsync(m => m.WorkspaceId == workspaceId && m.UserId == UserId))
+                return Forbid();
+            query = query.Where(h => h.Field!.Property!.WorkspaceId == workspaceId);
+        }
+        else if (!User.IsManager())
         {
             var wsIds = await MyWorkspaceIds();
             query = query.Where(h =>
